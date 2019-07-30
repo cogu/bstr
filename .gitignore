@@ -1,0 +1,5 @@
+CMemLeak.txt
+**/Debug/
+**/Release
+language.settings.xml
+CMemLeak.txt
