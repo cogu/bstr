@@ -8,7 +8,7 @@ variables to be created without the need of copying data. The bstr library offer
 
 This library defines a bounded string (or bstr) to be any sequence of bytes between two pointers (pBegin and pEnd).
 
-Bounded strings does not have a null-character at the end as opposed to C strings (or cstr). 
+Bounded strings does not have a null-character at the end as opposed to C strings (or cstr).
 Instead the pointer pBegin points to the first byte in the string while pEnd points to the first byte after the string.
 The length of the string can be calculated by using pointer arithmetics:
 
@@ -45,7 +45,7 @@ cd bstr
 
 ## Building with CMake
 
-First clone this repo and its dependencies into a common directory (such as ~/repo) as seen above. Alternatively the repos can be submodules of a top-level repo (as seen in [cogu/c-apx](https://github.com/cogu/c-apx))
+First clone this repo and its dependencies into a common directory (such as ~/repo) as seen above. Alternatively the repos can be submodules of a top-level repo (as seen in [cogu/c-apx](https://github.com/cogu/c-apx)).
 
 ### Running unit tests (Linux and GCC)
 
@@ -59,7 +59,7 @@ cmake --build .
 ### Running unit tests (Windows and Visual Studio)
 
 Use a command prompt provided by your Visual Studio installation.
-For example, I use the "x64 Native Tools Command Prompt for VS2019" link which can be found on the start menu.
+For example, I use "x64 Native Tools Command Prompt for VS2019" which can be found on the start menu.
 It conveniently comes pre-installed with a version of CMake that generates Visual Studio projects by default.
 
 ```cmd
