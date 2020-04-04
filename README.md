@@ -26,35 +26,45 @@ This repo is a submodule of the [cogu/c-apx](https://github.com/cogu/c-apx) (top
 * [cogu/adt](https://github.com/cogu/adt)
 * [cogu/cutil](https://github.com/cogu/cutil)
 
-The unit test project(s) assume that the repos are cloned (separately) into a common directory as seen below.
+The unit test project assumes that repos are cloned (separately) into a common directory as seen below.
 
 * adt
 * bstr (this repo)
 * cutil
 
-**Example**
+**Git Example**
 
 ```bash
-$ cd ~
-$ mkdir repo && cd repo
-$ git clone https://github.com/cogu/adt.git
-$ git clone https://github.com/cogu/bstr.git
-$ git clone https://github.com/cogu/cutil.git
-$ cd bstr
+cd ~
+mkdir repo && cd repo
+git clone https://github.com/cogu/adt.git
+git clone https://github.com/cogu/bstr.git
+git clone https://github.com/cogu/cutil.git
+cd bstr
 ```
-
 
 ## Building with CMake
 
-CMake files exist but has so far only been tested on Linux.
-
 First clone this repo and its dependencies into a common directory (such as ~/repo) as seen above. Alternatively the repos can be submodules of a top-level repo (as seen in [cogu/c-apx](https://github.com/cogu/c-apx))
 
-### Running unit tests (Linux)
+### Running unit tests (Linux and GCC)
 
 ```bash
-$ mkdir UnitTest && cd UnitTest
-$ cmake -DCMAKE_BUILD_TYPE=UnitTest ..
-$ cmake --build .
-$ ./bstr_unit
+mkdir UnitTest && cd UnitTest
+cmake -DUNIT_TEST=ON -DLEAK_CHECK=ON ..
+cmake --build .
+./bstr_unit
+```
+
+### Running unit tests (Windows and Visual Studio)
+
+Use a command prompt provided by your Visual Studio installation.
+For example, I use the "x64 Native Tools Command Prompt for VS2019" link which can be found on the start menu.
+It conveniently comes pre-installed with a version of CMake that generates Visual Studio projects by default.
+
+```cmd
+mkdir UnitTest && cd UnitTest
+cmake -DUNIT_TEST=ON -DLEAK_CHECK=ON ..
+cmake --build . --config Debug
+Debug\bstr_unit.exe
 ```

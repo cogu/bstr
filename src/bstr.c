@@ -300,7 +300,7 @@ const uint8_t *bstr_to_long(const uint8_t *pBegin, const uint8_t *pEnd, long *da
    {
       int radix=1;
       int i;
-      int len=(pResult-pBegin);
+      int len = (int) (pResult-pBegin);
       if (len == 0)
       {
          return pBegin;
@@ -342,7 +342,7 @@ const uint8_t *bstr_to_unsigned_long(const uint8_t *pBegin, const uint8_t *pEnd,
    {
       unsigned long radix=1;
       int i;
-      int len=(pResult-pBegin);
+      int len= (int) (pResult-pBegin);
       unsigned long tmp = 0;
       if (len == 0)
       {
