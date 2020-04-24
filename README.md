@@ -1,3 +1,5 @@
+![unit tests](https://github.com/cogu/bstr/workflows/unit%20tests/badge.svg)
+
 # bstr
 Bounded string library for the C programming language.
 
