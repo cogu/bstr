@@ -47,23 +47,46 @@ cd bstr
 
 First clone this repo and its dependencies into a common directory (such as ~/repo) as seen above. Alternatively the repos can be submodules of a top-level repo (as seen in [cogu/c-apx](https://github.com/cogu/c-apx)).
 
-### Running unit tests (Linux with GCC)
+### Running unit tests (Linux)
 
-```bash
-mkdir UnitTest && cd UnitTest
-cmake -DUNIT_TEST=ON -DLEAK_CHECK=ON ..
-cmake --build .
-./bstr_unit
+Configure:
+
+```sh
+cmake -S . -B build -DUNIT_TEST=ON
+```
+
+Build:
+
+```sh
+cmake --build build --target bstr_unit
+```
+
+Run test cases:
+
+```cmd
+cd build && ctest
 ```
 
 ### Running unit tests (Windows with Visual Studio)
 
-Use a Visual Studio command prompt from the start menu, such as "x64 Native Tools Command Prompt for VS2019".
-It conveniently comes pre-installed with a version of CMake that generates Visual Studio projects by default.
+Use a command prompt provided by your Visual Studio installation.
+For example, I use "x64 Native Tools Command Prompt for VS2019" which is found on the start menu.
+It conveniently comes with CMake pre-installed which generates Visual Studio projects by default.
+
+Configure:
 
 ```cmd
-mkdir UnitTest && cd UnitTest
-cmake -DUNIT_TEST=ON -DLEAK_CHECK=ON ..
-cmake --build . --config Debug
-Debug\bstr_unit.exe
+cmake -S . -B VisualStudio -DUNIT_TEST=ON
+```
+
+Build:
+
+```cmd
+cmake --build VisualStudio --config Debug --target bstr_unit
+```
+
+Run test cases:
+
+```cmd
+cd VisualStudio && ctest
 ```

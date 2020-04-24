@@ -14,11 +14,11 @@ endif()
 
 ### Library bstr
 set (BSTR_HEADER_LIST
-    inc/bstr.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/inc/bstr.h
 )
 
 set (BSTR_SOURCE_LIST
-    src/bstr.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bstr.c
 )
 
 add_library(bstr ${BSTR_HEADER_LIST} ${BSTR_SOURCE_LIST})
@@ -52,6 +52,10 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
             target_compile_definitions(bstr_unit PRIVATE MEM_LEAK_CHECK)
             target_link_libraries(bstr_unit PRIVATE cutil)
         endif()
+
+        enable_testing()
+        add_test(bstr_test ${CMAKE_CURRENT_BINARY_DIR}/bstr_unit)
+        set_tests_properties(bstr_test PROPERTIES PASS_REGULAR_EXPRESSION "OK \\([0-9]+ tests\\)")
     endif()
 endif()
 ###
