@@ -35,6 +35,8 @@ static void test_bstr_rstrip(CuTest* tc);
 static void test_bstr_parse_json_string_literal_empty(CuTest* tc);
 static void test_bstr_parse_json_string_literal_ascii(CuTest* tc);
 static void test_bstr_parse_json_string_literal_escapeChars(CuTest* tc);
+static void test_bstr_to_double(CuTest* tc);
+
 
 
 
@@ -69,6 +71,7 @@ CuSuite* testsuite_bstr(void)
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_empty);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_ascii);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_escapeChars);
+   SUITE_ADD_TEST(suite, test_bstr_to_double);
 
 
    return suite;
@@ -463,4 +466,62 @@ static void test_bstr_parse_json_string_literal_escapeChars(CuTest* tc)
    adt_str_delete(str);
 }
 
+static void test_bstr_to_double(CuTest* tc)
+{
+   const char *test_data1 = "0";
+   const char *test_data2 = "0.0";
+   const char *test_data3 = "1.0";
+   const char *test_data4 = "0.1";
+   const char *test_data5 = "-1";
+   const char *test_data6 = "-1.0";
+   const char *test_data7 = "-100.123";
+   const char *test_data = 0;
+   const uint8_t *pBegin;
+   const uint8_t *pEnd;
+   const uint8_t *pResult = 0;
+   double value;
+   const double delta = 0.0001;
 
+   test_data = test_data1;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, 0.0, value, delta);
+
+   test_data = test_data2;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, 0.0, value, delta);
+
+   test_data = test_data3;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, 1.0, value, delta);
+
+   test_data = test_data4;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, 0.1, value, delta);
+
+   test_data = test_data5;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, -1.0, value, delta);
+
+   test_data = test_data6;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, -1.0, value, delta);
+
+   test_data = test_data7;
+   pBegin = (const uint8_t*) test_data, pEnd = pBegin+strlen(test_data);
+   pResult = bstr_to_double(pBegin, pEnd, &value);
+   CuAssertConstPtrEquals(tc, pEnd, pResult);
+   CuAssertDblEquals(tc, -100.123, value, delta);
+
+}

@@ -84,13 +84,16 @@ void bstr_context_create(bstr_context_t *self);
 bstr_context_t *bstr_context_new(void);
 void bstr_context_delete(bstr_context_t *self);
 char* bstr_make_cstr(const uint8_t *pBegin, const uint8_t *pEnd);
-char* bstr_make_x_cstr(const uint8_t *pBegin, const uint8_t *pEnd, uint16_t startOffset, uint16_t endOffset);
+char* bstr_make_cstr_x(const uint8_t *pBegin, const uint8_t *pEnd, uint16_t startOffset, uint16_t endOffset);
 const uint8_t *bstr_search_val(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t val);
 const uint8_t *bstr_match_pair(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t left, uint8_t right, uint8_t escapeChar);
 const uint8_t *bstr_match_bstr(const uint8_t *pBegin, const uint8_t *pEnd,const uint8_t *pStrBegin, const uint8_t *pStrEnd);
 const uint8_t *bstr_match_cstr(const uint8_t *pBegin, const uint8_t *pEnd, const char *cstr);
+const uint8_t* bstr_to_double(const uint8_t* pBegin, const uint8_t* pEnd, double* data);
 const uint8_t *bstr_to_long(const uint8_t *pBegin, const uint8_t *pEnd, long *data);
+const uint8_t* bstr_to_long_long(const uint8_t* pBegin, const uint8_t* pEnd, long long* data);
 const uint8_t *bstr_to_unsigned_long(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t base, unsigned long *data);
+const uint8_t* bstr_to_unsigned_long_long(const uint8_t* pBegin, const uint8_t* pEnd, uint8_t base, unsigned long long* data);
 const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *pBegin, const uint8_t *pEnd, bstr_number_t *number);
 const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t *pBegin, const uint8_t *pEnd, adt_str_t *str);
 const uint8_t *bstr_line(const uint8_t *pBegin, const uint8_t *pEnd);
@@ -109,5 +112,6 @@ int bstr_pred_is_digit(int c);
 int bstr_pred_is_hex_digit(int c);
 int bstr_pred_is_one_nine(int c);
 int bstr_pred_is_control_char(int c);
+int bstr_pred_is_not_zero(int c);
 
 #endif //BSTR_H
