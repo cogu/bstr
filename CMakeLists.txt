@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(bstr LANGUAGES C VERSION 0.1.1)
+project(bstr LANGUAGES C VERSION 0.2.0)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include(../adt/cmake/BuildTypes.cmake)
@@ -37,9 +37,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_subdirectory(../cutil ${CMAKE_CURRENT_BINARY_DIR}/cutil)
 
     if(UNIT_TEST)
-
         set (BSTR_TEST_SUITE_LIST test/testsuite_bstr.c)
-
         add_executable(bstr_unit test/test_main.c ${BSTR_TEST_SUITE_LIST})
         target_link_libraries(bstr_unit PRIVATE adt bstr cutest)
         target_include_directories(bstr_unit PRIVATE

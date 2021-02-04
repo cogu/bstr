@@ -27,6 +27,7 @@
 // INCLUDES
 //////////////////////////////////////////////////////////////////////////////
 #include <string.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <errno.h>
 #include <assert.h>
@@ -41,6 +42,7 @@
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE CONSTANTS AND DATA TYPES
 //////////////////////////////////////////////////////////////////////////////
+#define MAX_NUMBER_SIZE 32
 
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTION PROTOTYPES
@@ -131,7 +133,7 @@ char* bstr_make_cstr(const uint8_t *pBegin, const uint8_t *pEnd){
  * It's OK to set one of the offsets to zero. If both beginOffset and endOffset are zero
  * it behaves identical to calling bstr_make_cstr directly
  */
-uint8_t *bstr_make_cstr_x(const uint8_t *pBegin, const uint8_t *pEnd, uint16_t beginOffset, uint16_t endOffset){
+char *bstr_make_cstr_x(const uint8_t *pBegin, const uint8_t *pEnd, uint16_t beginOffset, uint16_t endOffset){
    if( (pBegin != 0) && (pEnd != 0) && (pBegin)){
       uint8_t *str;
       uint32_t allocLen;
@@ -142,7 +144,7 @@ uint8_t *bstr_make_cstr_x(const uint8_t *pBegin, const uint8_t *pEnd, uint16_t b
          memcpy(str+beginOffset,pBegin,strLen);
          str[allocLen-1]=(uint8_t)0;
       }
-      return str;
+      return (char*)str;
    }
    return 0;
 }
@@ -293,91 +295,145 @@ const uint8_t *bstr_match_cstr(const uint8_t *pBegin, const uint8_t *pEnd, const
    return bstr_match_bstr(pBegin, pEnd, pStrBegin, pStrEnd);
 }
 
+const uint8_t* bstr_to_double(const uint8_t* pBegin, const uint8_t* pEnd, double* data)
+{
+   char tmp[MAX_NUMBER_SIZE+1];   
+   char* parse_end = NULL;
+   size_t size = pEnd - pBegin;
+   if (size > MAX_NUMBER_SIZE)
+   {
+      size = MAX_NUMBER_SIZE;
+   }
+   memcpy(&tmp[0], pBegin, size);
+   tmp[size]='\0';
+   *data = strtod(&tmp[0], &parse_end);
+   if (parse_end > &tmp[0] )
+   {
+      size_t delta = parse_end - &tmp[0];
+      const uint8_t* retval = pBegin + delta;
+      if (retval <= pEnd)
+      {
+         return retval;
+      }   
+   }
+   else if (parse_end == &tmp[0])
+   {
+      return pBegin; //Not a number
+   }
+   return NULL;
+}
+
 const uint8_t *bstr_to_long(const uint8_t *pBegin, const uint8_t *pEnd, long *data)
 {
-   const uint8_t *pResult = bstr_while_predicate(pBegin, pEnd, bstr_pred_is_digit);
-   if (pResult > pBegin)
+   char tmp[MAX_NUMBER_SIZE+1];   
+   char* parse_end = NULL;
+   size_t size = pEnd - pBegin;
+   if (size > MAX_NUMBER_SIZE)
    {
-      int radix=1;
-      int i;
-      int len = (int) (pResult-pBegin);
-      if (len == 0)
+      size = MAX_NUMBER_SIZE;
+   }
+   memcpy(&tmp[0], pBegin, size);
+   tmp[size]='\0';
+   *data = strtol(&tmp[0], &parse_end, 0);   
+   if (parse_end > &tmp[0] )
+   {
+      size_t delta = parse_end - &tmp[0];
+      const uint8_t* retval = pBegin + delta;
+      if (retval <= pEnd)
       {
-         return pBegin;
-      }
-      for (i=1;i<len;i++)
+         return retval;
+      }   
+   }
+   else if (parse_end == &tmp[0])
+   {
+      return pBegin; //Not a number
+   }
+   return NULL;
+}
+
+const uint8_t* bstr_to_long_long(const uint8_t* pBegin, const uint8_t* pEnd, long long* data)
+{
+   char tmp[MAX_NUMBER_SIZE+1];   
+   char* parse_end = NULL;
+   size_t size = pEnd - pBegin;
+   if (size > MAX_NUMBER_SIZE)
+   {
+      size = MAX_NUMBER_SIZE;
+   }
+   memcpy(&tmp[0], pBegin, size);
+   tmp[size]='\0';
+   *data = strtoll(&tmp[0], &parse_end, 0);   
+   if (parse_end > &tmp[0])
+   {
+      size_t delta = parse_end - &tmp[0];
+      const uint8_t* retval = pBegin + delta;
+      if (retval <= pEnd)
       {
-         radix*=10;
-      }
-      *data=0;
-      for(i=0;i<len;i++)
-      {
-         *data+=(pBegin[i]-0x30)*radix;
-         radix/=10;
+         return retval;
       }
    }
-   return pResult;
+   else if (parse_end == &tmp[0])
+   {
+      return pBegin; //Not a number
+   }
+   return NULL;
 }
+
 
 const uint8_t *bstr_to_unsigned_long(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t base, unsigned long *data)
 {
-   const uint8_t *pResult;
-   int (*pred_func)(int c) = 0;
-   if ( (base == 0) || (base == 10) )
+   char tmp[MAX_NUMBER_SIZE+1];   
+   char* parse_end = NULL;
+   size_t size = pEnd - pBegin;
+   if (size > MAX_NUMBER_SIZE)
    {
-      pred_func = bstr_pred_is_digit;
-      base = 10;
+      size = MAX_NUMBER_SIZE;
    }
-   else if (base == 16)
+   memcpy(&tmp[0], pBegin, size);
+   tmp[size]='\0';
+   *data = strtoul(&tmp[0], &parse_end, base);   
+   if (parse_end > &tmp[0] )
    {
-      pred_func = bstr_pred_is_hex_digit;
-   }
-   else
-   {
-      errno = EINVAL; //unsupported base
-      return 0;
-   }
-   pResult = bstr_while_predicate(pBegin, pEnd, pred_func);
-   if (pResult > pBegin)
-   {
-      unsigned long radix=1;
-      int i;
-      int len= (int) (pResult-pBegin);
-      unsigned long tmp = 0;
-      if (len == 0)
+      size_t delta = parse_end - &tmp[0];
+      const uint8_t* retval = pBegin + delta;
+      if (retval <= pEnd)
       {
-         return pBegin;
+         return retval;
       }
-      for (i=1;i<len;i++)
-      {
-         radix*=base;
-      }
+   }
+   else if (parse_end == &tmp[0])
+   {
+      return pBegin; //Not a number
+   }
+   return NULL;
+}
 
-      if (base == 16)
-      {
-         for(i=0;i<len;i++)
-         {
-            int tmp2 = ASCIIHexToInt[pBegin[i]];
-            assert(tmp2 >= 0);
-            tmp += tmp2*radix;
-            radix/=base;
-         }
-      }
-      else if ( (base == 8) || (base == 10) )
-      {
-         for(i=0;i<len;i++)
-         {
-            tmp += (pBegin[i]-0x30)*radix;
-            radix/=base;
-         }
-      }
-      else
-      {
-         assert(0);
-      }
-      *data = tmp;
+const uint8_t* bstr_to_unsigned_long_long(const uint8_t* pBegin, const uint8_t* pEnd, uint8_t base, unsigned long long* data)
+{
+   char tmp[MAX_NUMBER_SIZE+1];   
+   char* parse_end = NULL;
+   size_t size = pEnd - pBegin;
+   if (size > MAX_NUMBER_SIZE)
+   {
+      size = MAX_NUMBER_SIZE;
    }
-   return pResult;
+   memcpy(&tmp[0], pBegin, size);
+   tmp[size]='\0';
+   *data = strtoull(&tmp[0], &parse_end, base);   
+   if (parse_end > &tmp[0] )
+   {
+      size_t delta = parse_end - &tmp[0];
+      const uint8_t* retval = pBegin + delta;
+      if (retval <= pEnd)
+      {
+         return retval;
+      }
+   }
+   else if (parse_end == &tmp[0])
+   {
+      return pBegin; //Not a number
+   }
+   return NULL;
 }
 
 /**
@@ -645,6 +701,11 @@ int bstr_pred_is_one_nine(int c)
 int bstr_pred_is_control_char(int c)
 {
    return (c < 32);
+}
+
+int bstr_pred_is_not_zero(int c)
+{
+   return c != 0u;
 }
 
 //////////////////////////////////////////////////////////////////////////////
