@@ -34,6 +34,8 @@
 //////////////////////////////////////////////////////////////////////////////
 static void bstr_set_error(bstr_context_t *ctx, bstr_error_t error_code);
 static const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, bstr_number_t *number);
+static adt_error_t bstr_append_code_point(adt_str_t *str, uint32_t code_point);
+static int32_t bstr_utf8_sequence_size(const uint8_t *begin, const uint8_t *end);
 
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE VARIABLES
@@ -455,133 +457,190 @@ const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *begin,
  */
 const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, adt_str_t *str)
 {
-#define NUM_ESCAPE_CHARS 8
-   const uint8_t quotationMark = '"';
-   const uint8_t backslash = '\\';
-   const uint8_t frontslash = '/';
-   const uint8_t backspace = '\b';
-   const uint8_t formfeed = '\f';
-   const uint8_t linefeed = '\n';
-   const uint8_t carriageReturn = '\r';
-   const uint8_t horizontalTab = '\t';
-   const uint8_t validEscapeChars[NUM_ESCAPE_CHARS] = {
-         quotationMark,
-         backslash,
-         frontslash,
-         'b',
-         'f',
-         'n',
-         'r',
-         't'
-   };
-   const uint8_t escapeCharMap[NUM_ESCAPE_CHARS] = {
-         quotationMark,
-         backslash,
-         frontslash,
-         backspace,
-         formfeed,
-         linefeed,
-         carriageReturn,
-         horizontalTab,
-   };
-
    if ( (ctx == NULL) || (begin == NULL) || (end == NULL) || (str == NULL) || (end < begin) )
    {
       errno = EINVAL;
       return NULL;
    }
-   if (begin < end)
+
+   if (begin == end)
    {
-      uint8_t firstChar = *begin;
-      if (firstChar == quotationMark)
+      bstr_set_error(ctx, BSTR_PREMATURE_END_OF_BUFFER_ERROR);
+      return NULL;
+   }
+   if (*begin != '"')
+   {
+      bstr_set_error(ctx, BSTR_INVALID_CHARACTER_ERROR);
+      return NULL;
+   }
+
+   adt_str_t parsed;
+   const uint8_t *next = begin + 1;
+   bstr_error_t error = BSTR_PREMATURE_END_OF_BUFFER_ERROR;
+   adt_str_create(&parsed);
+
+   while (next < end)
+   {
+      uint8_t c = *next++;
+      adt_error_t result;
+
+      if (c == '"')
       {
-         const uint8_t *next = begin+1;
-         bool isEscapeSequence = false;
-         uint8_t escapeType = 0u;
-         uint8_t numDigits = 0u;
-         uint32_t value = 0u;
-         while(next < end)
+         result = adt_str_append(str, &parsed);
+         adt_str_destroy(&parsed);
+         if (result != ADT_NO_ERROR)
          {
-            uint8_t c = *next++;
-            if (isEscapeSequence)
+            bstr_set_error(ctx, BSTR_MEM_ERROR);
+            return NULL;
+         }
+         return next;
+      }
+
+      if (c == '\\')
+      {
+         uint8_t escaped;
+         if (next == end)
+         {
+            break;
+         }
+         escaped = *next++;
+         switch (escaped)
+         {
+         case '"': c = '"'; break;
+         case '\\': c = '\\'; break;
+         case '/': c = '/'; break;
+         case 'b': c = '\b'; break;
+         case 'f': c = '\f'; break;
+         case 'n': c = '\n'; break;
+         case 'r': c = '\r'; break;
+         case 't': c = '\t'; break;
+         case 'u':
+         {
+            uint32_t code_point = 0u;
+            uint32_t digit;
+            int32_t index;
+
+            if ((end - next) < 4)
             {
-               if (escapeType == 'u')
-               {
-                  if (numDigits<4)
-                  {
-                     value<<=4;
-                     value|=ASCIIHexToInt[c];
-                     numDigits++;
-                  }
-                  if (numDigits==4)
-                  {
-                     //TODO: adt_str_push does not yet support unicode, will need to fix that.
-                     //TODO: JSON can contain two \u sequences in a row to allow large code points. Will implement that later.
-                     adt_str_push(str, (int) value);
-                     escapeType = 0u;
-                     numDigits = 0u;
-                     value = 0u;
-                  }
-               }
-               else
-               {
-                  if (c == 'u')
-                  {
-                     escapeType = c;
-                  }
-                  else
-                  {
-                     int32_t i;
-                     for (i=0; i<NUM_ESCAPE_CHARS; i++)
-                     {
-                        if (c==validEscapeChars[i])
-                        {
-                           break;
-                        }
-                     }
-                     if (i < NUM_ESCAPE_CHARS)
-                     {
-                        adt_str_push(str, escapeCharMap[i]);
-                        isEscapeSequence = false;
-                     }
-                     else
-                     {
-                        bstr_set_error(ctx, BSTR_INVALID_CHARACTER_ERROR);
-                        return NULL;
-                     }
-                  }
-               }
+               goto parse_error;
             }
-            else
+            for (index = 0; index < 4; index++)
             {
-               if (c == quotationMark)
+               int value = ASCIIHexToInt[next[index]];
+               if (value < 0)
                {
-                  return next;
+                  error = BSTR_INVALID_CHARACTER_ERROR;
+                  goto parse_error;
                }
-               else if (c == backslash)
-               {
-                  isEscapeSequence = true;
-               }
-               else if (bstr_pred_is_control_char(c))
-               {
-                  bstr_set_error(ctx, BSTR_INVALID_CHARACTER_ERROR);
-                  return NULL;
-               }
-               else
-               {
-                  adt_error_t result = adt_str_push(str, c);
-                  if (result != ADT_NO_ERROR)
-                  {
-                     bstr_set_error(ctx, BSTR_MEM_ERROR);
-                     return NULL;
-                  }
-               }
+               digit = (uint32_t) value;
+               code_point = (code_point << 4) | digit;
             }
+            next += 4;
+
+            if ((code_point >= 0xd800u) && (code_point <= 0xdbffu))
+            {
+               uint32_t low_surrogate = 0u;
+               if ((end - next) < 6)
+               {
+                  if ((next < end) && (*next == '"'))
+                  {
+                     error = BSTR_INVALID_CHARACTER_ERROR;
+                  }
+                  goto parse_error;
+               }
+               if ((next[0] != '\\') || (next[1] != 'u'))
+               {
+                  error = BSTR_INVALID_CHARACTER_ERROR;
+                  goto parse_error;
+               }
+               next += 2;
+               for (index = 0; index < 4; index++)
+               {
+                  int value = ASCIIHexToInt[next[index]];
+                  if (value < 0)
+                  {
+                     error = BSTR_INVALID_CHARACTER_ERROR;
+                     goto parse_error;
+                  }
+                  digit = (uint32_t) value;
+                  low_surrogate = (low_surrogate << 4) | digit;
+               }
+               next += 4;
+               if ((low_surrogate < 0xdc00u) || (low_surrogate > 0xdfffu))
+               {
+                  error = BSTR_INVALID_CHARACTER_ERROR;
+                  goto parse_error;
+               }
+               code_point = 0x10000u + ((code_point - 0xd800u) << 10)
+                     + (low_surrogate - 0xdc00u);
+            }
+            else if ((code_point >= 0xdc00u) && (code_point <= 0xdfffu))
+            {
+               error = BSTR_INVALID_CHARACTER_ERROR;
+               goto parse_error;
+            }
+
+            result = bstr_append_code_point(&parsed, code_point);
+            if (result != ADT_NO_ERROR)
+            {
+               error = BSTR_MEM_ERROR;
+               goto parse_error;
+            }
+            continue;
+         }
+         default:
+            error = BSTR_INVALID_CHARACTER_ERROR;
+            goto parse_error;
+         }
+
+         result = adt_str_push(&parsed, c);
+         if (result != ADT_NO_ERROR)
+         {
+            error = BSTR_MEM_ERROR;
+            goto parse_error;
          }
       }
+      else if (bstr_pred_is_control_char(c))
+      {
+         error = BSTR_INVALID_CHARACTER_ERROR;
+         goto parse_error;
+      }
+      else if (c < 0x80u)
+      {
+         result = adt_str_push(&parsed, c);
+         if (result != ADT_NO_ERROR)
+         {
+            error = BSTR_MEM_ERROR;
+            goto parse_error;
+         }
+      }
+      else
+      {
+         const uint8_t *sequence_begin = next - 1;
+         int32_t sequence_size = bstr_utf8_sequence_size(sequence_begin, end);
+         if (sequence_size < 0)
+         {
+            goto parse_error;
+         }
+         if (sequence_size == 0)
+         {
+            error = BSTR_INVALID_CHARACTER_ERROR;
+            goto parse_error;
+         }
+         result = adt_str_append_bstr(&parsed, sequence_begin, sequence_begin + sequence_size);
+         if (result != ADT_NO_ERROR)
+         {
+            error = BSTR_MEM_ERROR;
+            goto parse_error;
+         }
+         next = sequence_begin + sequence_size;
+      }
    }
-   return begin;
-#undef NUM_ESCAPE_CHARS
+
+parse_error:
+   adt_str_destroy(&parsed);
+   bstr_set_error(ctx, error);
+   return NULL;
 }
 
 /**
@@ -696,6 +755,83 @@ int bstr_pred_is_not_zero(int c)
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
+static adt_error_t bstr_append_code_point(adt_str_t *str, uint32_t code_point)
+{
+   uint8_t encoded[4];
+   int32_t size;
+
+   if (code_point <= 0x7fu)
+   {
+      return adt_str_push(str, (int) code_point);
+   }
+   if (code_point <= 0x7ffu)
+   {
+      encoded[0] = (uint8_t) (0xc0u | (code_point >> 6));
+      encoded[1] = (uint8_t) (0x80u | (code_point & 0x3fu));
+      size = 2;
+   }
+   else if (code_point <= 0xffffu)
+   {
+      encoded[0] = (uint8_t) (0xe0u | (code_point >> 12));
+      encoded[1] = (uint8_t) (0x80u | ((code_point >> 6) & 0x3fu));
+      encoded[2] = (uint8_t) (0x80u | (code_point & 0x3fu));
+      size = 3;
+   }
+   else
+   {
+      encoded[0] = (uint8_t) (0xf0u | (code_point >> 18));
+      encoded[1] = (uint8_t) (0x80u | ((code_point >> 12) & 0x3fu));
+      encoded[2] = (uint8_t) (0x80u | ((code_point >> 6) & 0x3fu));
+      encoded[3] = (uint8_t) (0x80u | (code_point & 0x3fu));
+      size = 4;
+   }
+   return adt_str_append_bstr(str, encoded, encoded + size);
+}
+
+static int32_t bstr_utf8_sequence_size(const uint8_t *begin, const uint8_t *end)
+{
+   const uint8_t lead = begin[0];
+   int32_t size;
+   int32_t index;
+
+   if ((lead >= 0xc2u) && (lead <= 0xdfu))
+   {
+      size = 2;
+   }
+   else if ((lead >= 0xe0u) && (lead <= 0xefu))
+   {
+      size = 3;
+   }
+   else if ((lead >= 0xf0u) && (lead <= 0xf4u))
+   {
+      size = 4;
+   }
+   else
+   {
+      return 0;
+   }
+
+   if ((end - begin) < size)
+   {
+      return -1;
+   }
+   for (index = 1; index < size; index++)
+   {
+      if ((begin[index] & 0xc0u) != 0x80u)
+      {
+         return 0;
+      }
+   }
+   if (((lead == 0xe0u) && (begin[1] < 0xa0u)) ||
+       ((lead == 0xedu) && (begin[1] > 0x9fu)) ||
+       ((lead == 0xf0u) && (begin[1] < 0x90u)) ||
+       ((lead == 0xf4u) && (begin[1] > 0x8fu)))
+   {
+      return 0;
+   }
+   return size;
+}
+
 void bstr_set_error(bstr_context_t *ctx, bstr_error_t error_code)
 {
    ctx->last_error = error_code;

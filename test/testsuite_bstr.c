@@ -40,6 +40,13 @@ static void test_bstr_to_long(CuTest* tc);
 static void test_bstr_line_and_strip(CuTest* tc);
 static void test_bstr_predicates(CuTest* tc);
 static void test_bstr_parse_json_string_literal_invalid(CuTest* tc);
+static void test_bstr_parse_json_string_literal_all_short_escapes(CuTest* tc);
+static void test_bstr_parse_json_string_literal_stops_after_closing_quote(CuTest* tc);
+static void test_bstr_parse_json_string_literal_unicode_bmp(CuTest* tc);
+static void test_bstr_parse_json_string_literal_unicode_surrogate_pair(CuTest* tc);
+static void test_bstr_parse_json_string_literal_invalid_unicode(CuTest* tc);
+static void test_bstr_parse_json_string_literal_missing_quotes(CuTest* tc);
+static void test_bstr_parse_json_string_literal_raw_utf8(CuTest* tc);
 static void test_bstr_skip_backward_while(CuTest* tc);
 static void test_bstr_to_unsigned_long_base10(CuTest* tc);
 static void test_bstr_to_unsigned_long_base16(CuTest* tc);
@@ -85,6 +92,13 @@ CuSuite* testsuite_bstr(void)
    SUITE_ADD_TEST(suite, test_bstr_line_and_strip);
    SUITE_ADD_TEST(suite, test_bstr_predicates);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_invalid);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_all_short_escapes);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_stops_after_closing_quote);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_unicode_bmp);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_unicode_surrogate_pair);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_invalid_unicode);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_missing_quotes);
+   SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_raw_utf8);
    SUITE_ADD_TEST(suite, test_bstr_skip_backward_while);
    SUITE_ADD_TEST(suite, test_bstr_to_unsigned_long_base10);
    SUITE_ADD_TEST(suite, test_bstr_to_unsigned_long_base16);
@@ -296,8 +310,176 @@ static void test_bstr_parse_json_string_literal_invalid(CuTest* tc)
    str = adt_str_new_utf8();
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) unterminated,
       (const uint8_t*) unterminated + strlen(unterminated), str);
-   CuAssertConstPtrEquals(tc, (const uint8_t*) unterminated, result);
+   CuAssertConstPtrEquals(tc, NULL, result);
+   CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_get_last_error(&ctx));
+   adt_str_delete(str);
+}
+
+static void test_bstr_parse_json_string_literal_all_short_escapes(CuTest* tc)
+{
+   const char input[] = "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\"";
+   const char expected[] = {'\"', '\\', '/', '\b', '\f', '\n', '\r', '\t', '\0'};
+   bstr_context_t ctx;
+   adt_str_t *str = adt_str_new_utf8();
+   const uint8_t *result;
+
+   bstr_context_create(&ctx);
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) input,
+      (const uint8_t*) input + strlen(input), str);
+
+   CuAssertConstPtrEquals(tc, (const uint8_t*) input + strlen(input), result);
+   CuAssertStrEquals(tc, expected, adt_str_cstr(str));
    CuAssertUIntEquals(tc, BSTR_NO_ERROR, bstr_get_last_error(&ctx));
+   adt_str_delete(str);
+}
+
+static void test_bstr_parse_json_string_literal_stops_after_closing_quote(CuTest* tc)
+{
+   const char input[] = "\"value\":42";
+   bstr_context_t ctx;
+   adt_str_t *str = adt_str_new_utf8();
+   const uint8_t *result;
+
+   bstr_context_create(&ctx);
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) input,
+      (const uint8_t*) input + strlen(input), str);
+
+   CuAssertConstPtrEquals(tc, (const uint8_t*) input + 7, result);
+   CuAssertStrEquals(tc, "value", adt_str_cstr(str));
+   adt_str_delete(str);
+}
+
+static void test_bstr_parse_json_string_literal_unicode_bmp(CuTest* tc)
+{
+   const char ascii_escape[] = "\"\\u0041\"";
+   const char two_byte_escape[] = "\"\\u00E5\"";
+   const char bmp_escape[] = "\"\\u20AC\"";
+   bstr_context_t ctx;
+   adt_str_t *str;
+   const uint8_t *result;
+
+   bstr_context_create(&ctx);
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) ascii_escape,
+      (const uint8_t*) ascii_escape + strlen(ascii_escape), str);
+   CuAssertConstPtrEquals(tc, (const uint8_t*) ascii_escape + strlen(ascii_escape), result);
+   CuAssertStrEquals(tc, "A", adt_str_cstr(str));
+   adt_str_delete(str);
+
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) two_byte_escape,
+      (const uint8_t*) two_byte_escape + strlen(two_byte_escape), str);
+   CuAssertConstPtrEquals(tc, (const uint8_t*) two_byte_escape + strlen(two_byte_escape), result);
+   CuAssertStrEquals(tc, "\xC3\xA5", adt_str_cstr(str));
+   adt_str_delete(str);
+
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) bmp_escape,
+      (const uint8_t*) bmp_escape + strlen(bmp_escape), str);
+   CuAssertConstPtrEquals(tc, (const uint8_t*) bmp_escape + strlen(bmp_escape), result);
+   CuAssertStrEquals(tc, "\xE2\x82\xAC", adt_str_cstr(str));
+   adt_str_delete(str);
+}
+
+static void test_bstr_parse_json_string_literal_unicode_surrogate_pair(CuTest* tc)
+{
+   const char input[] = "\"\\uD834\\uDD1E\"";
+   bstr_context_t ctx;
+   adt_str_t *str = adt_str_new_utf8();
+   const uint8_t *result;
+
+   bstr_context_create(&ctx);
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) input,
+      (const uint8_t*) input + strlen(input), str);
+
+   CuAssertConstPtrEquals(tc, (const uint8_t*) input + strlen(input), result);
+   CuAssertStrEquals(tc, "\xF0\x9D\x84\x9E", adt_str_cstr(str));
+   adt_str_delete(str);
+}
+
+static void test_bstr_parse_json_string_literal_invalid_unicode(CuTest* tc)
+{
+   const char invalid_hex[] = "\"\\u12x4\"";
+   const char truncated[] = "\"\\u12";
+   const char lone_high_surrogate[] = "\"\\uD834\"";
+   const char lone_low_surrogate[] = "\"\\uDD1E\"";
+   const char invalid_surrogate_pair[] = "\"\\uD834\\u0041\"";
+   const char *inputs[] = {invalid_hex, lone_high_surrogate, lone_low_surrogate, invalid_surrogate_pair};
+   bstr_context_t ctx;
+   size_t index;
+
+   bstr_context_create(&ctx);
+   for (index = 0; index < sizeof(inputs) / sizeof(inputs[0]); index++)
+   {
+      adt_str_t *str = adt_str_new_utf8();
+      const uint8_t *result;
+      bstr_clear_error(&ctx);
+      result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) inputs[index],
+         (const uint8_t*) inputs[index] + strlen(inputs[index]), str);
+      CuAssertConstPtrEquals(tc, NULL, result);
+      CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+      adt_str_delete(str);
+   }
+
+   {
+      adt_str_t *str = adt_str_new_utf8();
+      const uint8_t *result;
+      bstr_clear_error(&ctx);
+      result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) truncated,
+         (const uint8_t*) truncated + strlen(truncated), str);
+      CuAssertConstPtrEquals(tc, NULL, result);
+      CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_get_last_error(&ctx));
+      adt_str_delete(str);
+   }
+}
+
+static void test_bstr_parse_json_string_literal_missing_quotes(CuTest* tc)
+{
+   const char missing_opening[] = "value\"";
+   const char trailing_backslash[] = "\"value\\";
+   bstr_context_t ctx;
+   adt_str_t *str;
+   const uint8_t *result;
+
+   bstr_context_create(&ctx);
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) missing_opening,
+      (const uint8_t*) missing_opening + strlen(missing_opening), str);
+   CuAssertConstPtrEquals(tc, NULL, result);
+   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+   adt_str_delete(str);
+
+   bstr_clear_error(&ctx);
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) trailing_backslash,
+      (const uint8_t*) trailing_backslash + strlen(trailing_backslash), str);
+   CuAssertConstPtrEquals(tc, NULL, result);
+   CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_get_last_error(&ctx));
+   adt_str_delete(str);
+}
+
+static void test_bstr_parse_json_string_literal_raw_utf8(CuTest* tc)
+{
+   const char valid[] = "\"\xE2\x82\xAC\"";
+   const char invalid[] = {'\"', (char) 0xC2, 'x', '\"', '\0'};
+   bstr_context_t ctx;
+   adt_str_t *str;
+   const uint8_t *result;
+
+   bstr_context_create(&ctx);
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) valid,
+      (const uint8_t*) valid + strlen(valid), str);
+   CuAssertConstPtrEquals(tc, (const uint8_t*) valid + strlen(valid), result);
+   CuAssertStrEquals(tc, "\xE2\x82\xAC", adt_str_cstr(str));
+   adt_str_delete(str);
+
+   bstr_clear_error(&ctx);
+   str = adt_str_new_utf8();
+   result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) invalid,
+      (const uint8_t*) invalid + strlen(invalid), str);
+   CuAssertConstPtrEquals(tc, NULL, result);
+   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
    adt_str_delete(str);
 }
 
