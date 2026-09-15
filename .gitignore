@@ -2,5 +2,8 @@ CMemLeak.txt
 **/Debug/
 **/Release/
 /VisualStudio/
-/build/
-language.settings.xml
+build/
+build-*/
+/docs/make.bat
+/docs/_build/
+**/.venv/
