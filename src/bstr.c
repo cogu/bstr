@@ -14,7 +14,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <malloc.h>
-#include <errno.h>
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -216,7 +215,6 @@ const uint8_t *bstr_match_bstr(const uint8_t *begin, const uint8_t *end, const u
    const uint8_t *str_next = str_begin;
    if ( (begin > end) || (str_begin > str_end) )
    {
-      errno = EINVAL; //invalid arguments
       return NULL;
    }
    while(next < end){
@@ -248,7 +246,6 @@ const uint8_t *bstr_match_cstr(const uint8_t *begin, const uint8_t *end, const c
    const uint8_t *str_end;
    if ( (begin == NULL) || (end == NULL) || (end < begin) || (cstr == NULL) )
    {
-      errno = EINVAL; //invalid arguments
       return NULL;
    }
    str_end = str_begin + strlen(cstr);
@@ -402,7 +399,6 @@ const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *begin,
    const uint8_t *next = begin;
    if ( (ctx == NULL) || (begin == NULL) || (end == NULL) || (number == NULL) || (begin > end) )
    {
-      errno = EINVAL; //invalid arguments
       return NULL;
    }
    number->has_integer = false;
@@ -425,7 +421,6 @@ const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t
 {
    if ( (ctx == NULL) || (begin == NULL) || (end == NULL) || (str == NULL) || (end < begin) )
    {
-      errno = EINVAL;
       return NULL;
    }
 
