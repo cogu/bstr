@@ -4,24 +4,9 @@
 * \date      2017-08-04
 * \brief     Bounded strings library
 *
-* Copyright (c) 2017-2019 Conny Gustafsson
-* Permission is hereby granted, free of charge, to any person obtaining a copy of
-* this software and associated documentation files (the "Software"), to deal in
-* the Software without restriction, including without limitation the rights to
-* use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-* the Software, and to permit persons to whom the Software is furnished to do so,
-* subject to the following conditions:
-
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-* CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*
+* Copyright (c) 2017-2026 Conny Gustafsson
+* SPDX-License-Identifier: MIT
+* See LICENSE in project root for full license terms.
 ******************************************************************************/
 //////////////////////////////////////////////////////////////////////////////
 // INCLUDES
@@ -47,8 +32,8 @@
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTION PROTOTYPES
 //////////////////////////////////////////////////////////////////////////////
-static void bstr_set_error(bstr_context_t *ctx, bstr_error_t errorCode);
-static const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *pBegin, const uint8_t *pEnd, bstr_number_t *number);
+static void bstr_set_error(bstr_context_t *ctx, bstr_error_t error_code);
+static const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, bstr_number_t *number);
 
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE VARIABLES
@@ -83,16 +68,16 @@ static const int ASCIIHexToInt[256] =
  */
 void bstr_context_create(bstr_context_t *self)
 {
-   if (self != 0)
+   if (self != NULL)
    {
-      self->lastError = BSTR_NO_ERROR;
+      self->last_error = BSTR_NO_ERROR;
    }
 }
 
 bstr_context_t *bstr_context_new(void)
 {
    bstr_context_t *self = (bstr_context_t*) malloc(sizeof(bstr_context_t));
-   if (self != 0)
+   if (self != NULL)
    {
       bstr_context_create(self);
    }
@@ -101,7 +86,7 @@ bstr_context_t *bstr_context_new(void)
 
 void bstr_context_delete(bstr_context_t *self)
 {
-   if (self != 0)
+   if (self != NULL)
    {
       free(self);
    }
@@ -113,92 +98,92 @@ void bstr_context_delete(bstr_context_t *self)
  * Additionally the caller is responsible for freeing up the memory allocated by this function
  * by calling free on the returned pointer.
  */
-char* bstr_make_cstr(const uint8_t *pBegin, const uint8_t *pEnd){
-   if( (pBegin != 0) && (pEnd != 0) && (pBegin<pEnd)){
-      uint32_t len = (uint32_t) (pEnd-pBegin);
+char* bstr_make_cstr(const uint8_t *begin, const uint8_t *end){
+   if( (begin != NULL) && (end != NULL) && (begin<end)){
+      uint32_t len = (uint32_t) (end-begin);
       uint8_t *str = (uint8_t*) malloc(len+1);
-      if(str != 0){
-         memcpy(str,pBegin,len);
+      if(str != NULL){
+         memcpy(str,begin,len);
          str[len]=0;
       }
       return (char*) str;
    }
-   return 0;
+   return NULL;
 }
 
 /**
  * Similar to bstr_make but in addition it adds optional space before and after the copied string.
- * startOffset is the number of extra bytes to add before the (copied) string while
- * endOffset is the number of extra bytes to add after string.
- * It's OK to set one of the offsets to zero. If both beginOffset and endOffset are zero
+ * start_offset is the number of extra bytes to add before the (copied) string while
+ * end_offset is the number of extra bytes to add after string.
+ * It's OK to set one of the offsets to zero. If both start_offset and end_offset are zero
  * it behaves identical to calling bstr_make_cstr directly
  */
-char *bstr_make_cstr_x(const uint8_t *pBegin, const uint8_t *pEnd, uint16_t beginOffset, uint16_t endOffset){
-   if( (pBegin != 0) && (pEnd != 0) && (pBegin)){
+char *bstr_make_cstr_x(const uint8_t *begin, const uint8_t *end, uint16_t start_offset, uint16_t end_offset){
+   if( (begin != NULL) && (end != NULL) && (begin)){
       uint8_t *str;
       uint32_t allocLen;
-      uint32_t strLen = (uint32_t) (pEnd-pBegin);
-      allocLen = strLen+beginOffset+endOffset+1;
+      uint32_t strLen = (uint32_t) (end-begin);
+      allocLen = strLen+start_offset+end_offset+1;
       str = (uint8_t*) malloc(allocLen);
-      if(str != 0){
-         memcpy(str+beginOffset,pBegin,strLen);
+      if(str != NULL){
+         memcpy(str+start_offset,begin,strLen);
          str[allocLen-1]=(uint8_t)0;
       }
       return (char*)str;
    }
-   return 0;
+   return NULL;
 }
 
 /**
- * scans for \par val between \par pBegin and \par pEnd.
+ * scans for \par val between \par begin and \par end.
  * On success it returns the pointer to \par val.
- * On failure it returns \par pBegin if not found or NULL if invalid arguments was given.
+ * On failure it returns \par begin if not found or NULL if invalid arguments was given.
  */
-const uint8_t *bstr_search_val(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t val){
-   const uint8_t *pNext = pBegin;
-   if (pNext > pEnd)
+const uint8_t *bstr_search_val(const uint8_t *begin, const uint8_t *end, uint8_t val){
+   const uint8_t *next = begin;
+   if (next > end)
    {
-      return 0; //invalid arguments
+      return NULL; //invalid arguments
    }
-   while(pNext < pEnd){
-      uint8_t c = *pNext;
+   while(next < end){
+      uint8_t c = *next;
       if(c == val){
-         return pNext;
+         return next;
       }
-      pNext++;
+      next++;
    }
-   return pBegin; //val was not found before pEnd was reached
+   return begin; //val was not found before end was reached
 }
 
 /**
  * scans for matching \par left and \par right characters in a string. Used for matching '(' with ')', '[' with, ']' etc.
  * On Success it returns the pointer to \par right.
- * On failure it returns \par pBegin if the scan reached \par pEnd before \par right was found.
- * If it cannot even match \par left on the first character of \par pBegin it returns NULL.
+ * On failure it returns \par begin if the scan reached \par end before \par right was found.
+ * If it cannot even match \par left on the first character of \par begin it returns NULL.
  */
-const uint8_t *bstr_match_pair(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t left, uint8_t right, uint8_t escapeChar){
-   const uint8_t *pNext = pBegin;
+const uint8_t *bstr_match_pair(const uint8_t *begin, const uint8_t *end, uint8_t left, uint8_t right, uint8_t escape_char){
+   const uint8_t *next = begin;
    uint32_t innerLevelCount=0;
-   if (pNext < pEnd){
-      if (*pNext == left){
-         pNext++;
-         if (escapeChar != 0){
+   if (next < end){
+      if (*next == left){
+         next++;
+         if (escape_char != 0){
             uint8_t isEscape = 0;
-            while (pNext < pEnd){
-               uint8_t c = *pNext;
+            while (next < end){
+               uint8_t c = *next;
                if (isEscape != 0){
                   //ignore this char
-                  pNext++;
+                  next++;
                   isEscape = 0;
                   continue;
                }
                else {
-                  if ( c == escapeChar ){
+                  if ( c == escape_char ){
                      isEscape = 1;
                   }
                   else if (c == right){
                      if (innerLevelCount == 0) {
-                        return pNext;
+                        return next;
                      }
                      else {
                         innerLevelCount--;
@@ -209,15 +194,15 @@ const uint8_t *bstr_match_pair(const uint8_t *pBegin, const uint8_t *pEnd, uint8
                      innerLevelCount++;
                   }
                }
-               pNext++;
+               next++;
             }
          }
          else{
-            while (pNext < pEnd) {
-               uint8_t c = *pNext;
+            while (next < end) {
+               uint8_t c = *next;
                if (c == right){
                   if (innerLevelCount == 0) {
-                     return pNext;
+                     return next;
                   }
                   else {
                      innerLevelCount--;
@@ -227,211 +212,211 @@ const uint8_t *bstr_match_pair(const uint8_t *pBegin, const uint8_t *pEnd, uint8
                {
                   innerLevelCount++;
                }
-               pNext++;
+               next++;
             }
          }
       }
       else
       {
-         return 0; //string does not start with \par left character
+         return NULL; //string does not start with \par left character
       }
    }
-   return pBegin;
+   return begin;
 }
 
 /**
- * \brief compares characters in string bounded by pStrBegin and pStrEnd in buffer bound by pBegin and pEnd
- * \param pBegin start of buffer
- * \param pEnd end of buffer
- * \param pStrBegin start of string to be matched
- * \param pStrEnd end of string to matched
- * \return On succes, pointer in buffer where the match stopped. On match failure it returns 0. If pEnd was reached before pStr was fully matched it returns pBegin.
+ * \brief compares characters in string bounded by str_begin and str_end in buffer bound by begin and end
+ * \param begin start of buffer
+ * \param end end of buffer
+ * \param str_begin start of string to be matched
+ * \param str_end end of string to matched
+ * \return On success, pointer in buffer where the match stopped. On match failure it returns 0. If end was reached before str_end was fully matched it returns begin.
  */
-const uint8_t *bstr_match_bstr(const uint8_t *pBegin, const uint8_t *pEnd, const uint8_t *pStrBegin, const uint8_t *pStrEnd)
+const uint8_t *bstr_match_bstr(const uint8_t *begin, const uint8_t *end, const uint8_t *str_begin, const uint8_t *str_end)
 {
-   const uint8_t *pNext = pBegin;
-   const uint8_t *pStrNext = pStrBegin;
-   if ( (pBegin > pEnd) || (pStrBegin > pStrEnd) )
+   const uint8_t *next = begin;
+   const uint8_t *str_next = str_begin;
+   if ( (begin > end) || (str_begin > str_end) )
    {
       errno = EINVAL; //invalid arguments
-      return 0;
+      return NULL;
    }
-   while(pNext < pEnd){
-      if (pStrNext < pStrEnd)
+   while(next < end){
+      if (str_next < str_end)
       {
-         if (*pNext != *pStrNext)
+         if (*next != *str_next)
          {
-            return 0; //string did not match
+            return NULL; //string did not match
          }
       }
       else
       {
-         //All characters in pStr has been successfully matched
-         return pNext; //pNext should point to pStrEnd at this point
+         //All characters in str_begin has been successfully matched
+         return next; //next should point to str_end at this point
       }
-      pNext++;
-      pStrNext++;
+      next++;
+      str_next++;
    }
-   if (pStrNext == pStrEnd)
+   if (str_next == str_end)
    {
-      return pNext; //All characters in pStr has been successfully matched
+      return next; //All characters in str_begin has been successfully matched
    }
-   return pBegin; //reached pEnd before pStr was fully matched
+   return begin; //reached end before str_begin was fully matched
 }
 
 /**
  * Checks if the C string (cstr) is a substring of the bounded string (bstr).
  */
-const uint8_t *bstr_match_cstr(const uint8_t *pBegin, const uint8_t *pEnd, const char *cstr)
+const uint8_t *bstr_match_cstr(const uint8_t *begin, const uint8_t *end, const char *cstr)
 {
-   const uint8_t *pStrBegin = (const uint8_t*) cstr;
-   const uint8_t *pStrEnd;
-   if ( (pBegin == 0) || (pEnd == 0) || (pEnd < pBegin) || (cstr == 0) )
+   const uint8_t *str_begin = (const uint8_t*) cstr;
+   const uint8_t *str_end;
+   if ( (begin == NULL) || (end == NULL) || (end < begin) || (cstr == NULL) )
    {
       errno = EINVAL; //invalid arguments
-      return 0;
+      return NULL;
    }
-   pStrEnd = pStrBegin + strlen(cstr);
-   return bstr_match_bstr(pBegin, pEnd, pStrBegin, pStrEnd);
+   str_end = str_begin + strlen(cstr);
+   return bstr_match_bstr(begin, end, str_begin, str_end);
 }
 
-const uint8_t* bstr_to_double(const uint8_t* pBegin, const uint8_t* pEnd, double* data)
+const uint8_t* bstr_to_double(const uint8_t* begin, const uint8_t* end, double* data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
-   size_t size = pEnd - pBegin;
+   size_t size = end - begin;
    if (size > MAX_NUMBER_SIZE)
    {
       size = MAX_NUMBER_SIZE;
    }
-   memcpy(&tmp[0], pBegin, size);
+   memcpy(&tmp[0], begin, size);
    tmp[size]='\0';
    *data = strtod(&tmp[0], &parse_end);
    if (parse_end > &tmp[0] )
    {
       size_t delta = parse_end - &tmp[0];
-      const uint8_t* retval = pBegin + delta;
-      if (retval <= pEnd)
+      const uint8_t* retval = begin + delta;
+      if (retval <= end)
       {
          return retval;
       }   
    }
    else if (parse_end == &tmp[0])
    {
-      return pBegin; //Not a number
+      return begin; //Not a number
    }
    return NULL;
 }
 
-const uint8_t *bstr_to_long(const uint8_t *pBegin, const uint8_t *pEnd, long *data)
+const uint8_t *bstr_to_long(const uint8_t *begin, const uint8_t *end, long *data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
-   size_t size = pEnd - pBegin;
+   size_t size = end - begin;
    if (size > MAX_NUMBER_SIZE)
    {
       size = MAX_NUMBER_SIZE;
    }
-   memcpy(&tmp[0], pBegin, size);
+   memcpy(&tmp[0], begin, size);
    tmp[size]='\0';
    *data = strtol(&tmp[0], &parse_end, 0);   
    if (parse_end > &tmp[0] )
    {
       size_t delta = parse_end - &tmp[0];
-      const uint8_t* retval = pBegin + delta;
-      if (retval <= pEnd)
+      const uint8_t* retval = begin + delta;
+      if (retval <= end)
       {
          return retval;
       }   
    }
    else if (parse_end == &tmp[0])
    {
-      return pBegin; //Not a number
+      return begin; //Not a number
    }
    return NULL;
 }
 
-const uint8_t* bstr_to_long_long(const uint8_t* pBegin, const uint8_t* pEnd, long long* data)
+const uint8_t* bstr_to_long_long(const uint8_t* begin, const uint8_t* end, long long* data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
-   size_t size = pEnd - pBegin;
+   size_t size = end - begin;
    if (size > MAX_NUMBER_SIZE)
    {
       size = MAX_NUMBER_SIZE;
    }
-   memcpy(&tmp[0], pBegin, size);
+   memcpy(&tmp[0], begin, size);
    tmp[size]='\0';
    *data = strtoll(&tmp[0], &parse_end, 0);   
    if (parse_end > &tmp[0])
    {
       size_t delta = parse_end - &tmp[0];
-      const uint8_t* retval = pBegin + delta;
-      if (retval <= pEnd)
+      const uint8_t* retval = begin + delta;
+      if (retval <= end)
       {
          return retval;
       }
    }
    else if (parse_end == &tmp[0])
    {
-      return pBegin; //Not a number
+      return begin; //Not a number
    }
    return NULL;
 }
 
 
-const uint8_t *bstr_to_unsigned_long(const uint8_t *pBegin, const uint8_t *pEnd, uint8_t base, unsigned long *data)
+const uint8_t *bstr_to_unsigned_long(const uint8_t *begin, const uint8_t *end, uint8_t base, unsigned long *data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
-   size_t size = pEnd - pBegin;
+   size_t size = end - begin;
    if (size > MAX_NUMBER_SIZE)
    {
       size = MAX_NUMBER_SIZE;
    }
-   memcpy(&tmp[0], pBegin, size);
+   memcpy(&tmp[0], begin, size);
    tmp[size]='\0';
    *data = strtoul(&tmp[0], &parse_end, base);   
    if (parse_end > &tmp[0] )
    {
       size_t delta = parse_end - &tmp[0];
-      const uint8_t* retval = pBegin + delta;
-      if (retval <= pEnd)
+      const uint8_t* retval = begin + delta;
+      if (retval <= end)
       {
          return retval;
       }
    }
    else if (parse_end == &tmp[0])
    {
-      return pBegin; //Not a number
+      return begin; //Not a number
    }
    return NULL;
 }
 
-const uint8_t* bstr_to_unsigned_long_long(const uint8_t* pBegin, const uint8_t* pEnd, uint8_t base, unsigned long long* data)
+const uint8_t* bstr_to_unsigned_long_long(const uint8_t* begin, const uint8_t* end, uint8_t base, unsigned long long* data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
-   size_t size = pEnd - pBegin;
+   size_t size = end - begin;
    if (size > MAX_NUMBER_SIZE)
    {
       size = MAX_NUMBER_SIZE;
    }
-   memcpy(&tmp[0], pBegin, size);
+   memcpy(&tmp[0], begin, size);
    tmp[size]='\0';
    *data = strtoull(&tmp[0], &parse_end, base);   
    if (parse_end > &tmp[0] )
    {
       size_t delta = parse_end - &tmp[0];
-      const uint8_t* retval = pBegin + delta;
-      if (retval <= pEnd)
+      const uint8_t* retval = begin + delta;
+      if (retval <= end)
       {
          return retval;
       }
    }
    else if (parse_end == &tmp[0])
    {
-      return pBegin; //Not a number
+      return begin; //Not a number
    }
    return NULL;
 }
@@ -439,36 +424,36 @@ const uint8_t* bstr_to_unsigned_long_long(const uint8_t* pBegin, const uint8_t* 
 /**
  * Parses a number from a bounded string using JSON number format
  */
-const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *pBegin, const uint8_t *pEnd, bstr_number_t *number)
+const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, bstr_number_t *number)
 {
-   const uint8_t *pResult;
-   const uint8_t *pNext = pBegin;
-   if ( (ctx == 0) || (pBegin == 0) || (pEnd == 0) || (number == 0) || (pBegin > pEnd) )
+   const uint8_t *result;
+   const uint8_t *next = begin;
+   if ( (ctx == NULL) || (begin == NULL) || (end == NULL) || (number == NULL) || (begin > end) )
    {
       errno = EINVAL; //invalid arguments
-      return 0;
+      return NULL;
    }
-   number->hasInteger = false;
-   number->hasFraction = false;
-   number->hasExponent = false;
-   number->isNegative = false;
-   if (pNext < pEnd)
+   number->has_integer = false;
+   number->has_fraction = false;
+   number->has_exponent = false;
+   number->is_negative = false;
+   if (next < end)
    {
-      pResult = bstr_parse_number_int(ctx, pNext, pEnd, number);
-      pNext = pResult;
+      result = bstr_parse_number_int(ctx, next, end, number);
+      next = result;
    }
    else
    {
       //empty string
    }
-   return pNext;
+   return next;
 }
 
 /**
  * Using the JSON definition, this function parses a double-quoted string literal.
  * The parsed string (not including the the quotation marks) will be stored in the str parameter
  */
-const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t *pBegin, const uint8_t *pEnd, adt_str_t *str)
+const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, adt_str_t *str)
 {
 #define NUM_ESCAPE_CHARS 8
    const uint8_t quotationMark = '"';
@@ -500,24 +485,24 @@ const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t
          horizontalTab,
    };
 
-   if ( (ctx == 0) || (pBegin == 0) || (pEnd == 0) || (str == 0) || (pEnd < pBegin) )
+   if ( (ctx == NULL) || (begin == NULL) || (end == NULL) || (str == NULL) || (end < begin) )
    {
       errno = EINVAL;
-      return (const uint8_t*) 0;
+      return NULL;
    }
-   if (pBegin < pEnd)
+   if (begin < end)
    {
-      uint8_t firstChar = *pBegin;
+      uint8_t firstChar = *begin;
       if (firstChar == quotationMark)
       {
-         const uint8_t *pNext = pBegin+1;
+         const uint8_t *next = begin+1;
          bool isEscapeSequence = false;
          uint8_t escapeType = 0u;
          uint8_t numDigits = 0u;
          uint32_t value = 0u;
-         while(pNext < pEnd)
+         while(next < end)
          {
-            uint8_t c = *pNext++;
+            uint8_t c = *next++;
             if (isEscapeSequence)
             {
                if (escapeType == 'u')
@@ -562,7 +547,7 @@ const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t
                      else
                      {
                         bstr_set_error(ctx, BSTR_INVALID_CHARACTER_ERROR);
-                        return (const uint8_t*) 0;
+                        return NULL;
                      }
                   }
                }
@@ -571,7 +556,7 @@ const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t
             {
                if (c == quotationMark)
                {
-                  return pNext;
+                  return next;
                }
                else if (c == backslash)
                {
@@ -580,7 +565,7 @@ const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t
                else if (bstr_pred_is_control_char(c))
                {
                   bstr_set_error(ctx, BSTR_INVALID_CHARACTER_ERROR);
-                  return (const uint8_t*) 0;
+                  return NULL;
                }
                else
                {
@@ -588,88 +573,88 @@ const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t
                   if (result != ADT_NO_ERROR)
                   {
                      bstr_set_error(ctx, BSTR_MEM_ERROR);
-                     return (const uint8_t*) 0;
+                     return NULL;
                   }
                }
             }
          }
       }
    }
-   return pBegin;
+   return begin;
 #undef NUM_ESCAPE_CHARS
 }
 
 /**
  * searches for next line ending '\n'. returns where it encountered the line ending
  */
-const uint8_t *bstr_line(const uint8_t *pBegin, const uint8_t *pEnd)
+const uint8_t *bstr_line(const uint8_t *begin, const uint8_t *end)
 {
-   return bstr_search_val(pBegin, pEnd, (uint8_t) '\n');
+   return bstr_search_val(begin, end, (uint8_t) '\n');
 }
 
-const uint8_t *bstr_while_predicate(const uint8_t *pBegin, const uint8_t *pEnd, int (*pred_func)(int c) )
+const uint8_t *bstr_skip_forward_while(const uint8_t *begin, const uint8_t *end, int (*predicate)(int c) )
 {
-   const uint8_t *pNext = pBegin;
-   while (pNext < pEnd)
+   const uint8_t *next = begin;
+   while (next < end)
    {
-      int c = (int) *pNext;
-      if (!pred_func(c)){
+      int c = (int) *next;
+      if (!predicate(c)){
          break;
       }
-      pNext++;
+      next++;
    }
-   return pNext;
+   return next;
 }
 
-const uint8_t *bstr_while_predicate_reverse(const uint8_t *pBegin, const uint8_t *pEnd, int (*pred_func)(int c) )
+const uint8_t *bstr_skip_backward_while(const uint8_t *begin, const uint8_t *end, int (*predicate)(int c) )
 {
-   if (pBegin < pEnd)
+   if (begin < end)
    {
-      const uint8_t *pNext = pEnd;
-      while (pNext > pBegin)
+      const uint8_t *next = end;
+      while (next > begin)
       {
-         const uint8_t *pTest = pNext-1;
-         int c = (int) *pTest;
-         if (!pred_func(c)){
+         const uint8_t *test = next-1;
+         int c = (int) *test;
+         if (!predicate(c)){
             break;
          }
-         pNext--;
+         next--;
       }
-      return pNext;
+      return next;
    }
-   return pBegin;
+   return begin;
 }
 
 /**
- * Strips any whitespace from beginning of string, returns a new pBegin where first non-whitespace charactes is found
+ * Strips any whitespace from beginning of string, returns a new begin where first non-whitespace charactes is found
  */
-const uint8_t *bstr_lstrip(const uint8_t *pBegin, const uint8_t *pEnd)
+const uint8_t *bstr_lstrip(const uint8_t *begin, const uint8_t *end)
 {
-   return bstr_while_predicate(pBegin, pEnd, bstr_pred_is_whitespace);
+   return bstr_skip_forward_while(begin, end, bstr_pred_is_whitespace);
 }
 
 /**
- * Strips any whitespace from end of string, returns a new pEnd which points to the first whitespace character
+ * Strips any whitespace from end of string, returns a new end which points to the first whitespace character
  */
-const uint8_t *bstr_rstrip(const uint8_t *pBegin, const uint8_t *pEnd)
+const uint8_t *bstr_rstrip(const uint8_t *begin, const uint8_t *end)
 {
-   return bstr_while_predicate_reverse(pBegin, pEnd, bstr_pred_is_whitespace);
+   return bstr_skip_backward_while(begin, end, bstr_pred_is_whitespace);
 }
 
-void bstr_strip(const uint8_t *pBegin, const uint8_t *pEnd, const uint8_t **strippedBegin, const uint8_t **strippedEnd)
+void bstr_strip(const uint8_t *begin, const uint8_t *end, const uint8_t **stripped_begin, const uint8_t **stripped_end)
 {
-   *strippedBegin = bstr_lstrip(pBegin, pEnd);
-   *strippedEnd = bstr_rstrip(*strippedBegin, pEnd);
+   *stripped_begin = bstr_lstrip(begin, end);
+   *stripped_end = bstr_rstrip(*stripped_begin, end);
 }
 
 bstr_error_t bstr_get_last_error(bstr_context_t *ctx)
 {
-   return ctx->lastError;
+   return ctx->last_error;
 }
 
 void bstr_clear_error(bstr_context_t *ctx)
 {
-   ctx->lastError = BSTR_NO_ERROR;
+   ctx->last_error = BSTR_NO_ERROR;
 }
 
 /*************** predicate functions ***************/
@@ -711,46 +696,46 @@ int bstr_pred_is_not_zero(int c)
 //////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
-void bstr_set_error(bstr_context_t *ctx, bstr_error_t errorCode)
+void bstr_set_error(bstr_context_t *ctx, bstr_error_t error_code)
 {
-   ctx->lastError = errorCode;
+   ctx->last_error = error_code;
 }
 
-const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *pBegin, const uint8_t *pEnd, bstr_number_t *number)
+const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, bstr_number_t *number)
 {
-   const uint8_t *pNext = pBegin;
+   const uint8_t *next = begin;
    const int32_t base = 10;
 
-   if (pNext < pEnd)
+   if (next < end)
    {
-      char c =  (char) *pNext;
+      char c =  (char) *next;
       if (c == '-')
       {
-         number->isNegative = true;
-         ++pNext;
-         if (pNext < pEnd)
+         number->is_negative = true;
+         ++next;
+         if (next < end)
          {
-            c =  (char) *pNext;
+            c =  (char) *next;
          }
          else
          {
             bstr_set_error(ctx, BSTR_PARSE_ERROR);
-            return (const uint8_t *) 0;
+            return NULL;
          }
       }
       if (c == '0')
       {
          number->integer = 0;
-         number->hasInteger = true;
-         ++pNext;
+         number->has_integer = true;
+         ++next;
       }
       else if (bstr_pred_is_one_nine(c))
       {
          int64_t intPart = ASCIIHexToInt[(int) c];
-         pNext++;
-         while(pNext < pEnd)
+         next++;
+         while(next < end)
          {
-            int tmp =  (int) *pNext;
+            int tmp =  (int) *next;
             if (bstr_pred_is_digit(tmp))
             {
                intPart *= base;
@@ -758,24 +743,24 @@ const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *pBegin,
                if (intPart > UINT32_MAX)
                {
                   bstr_set_error(ctx, BSTR_NUMBER_TOO_LARGE_ERROR);
-                  return (const uint8_t *) 0;
+                  return NULL;
                }
-               pNext++;
+               next++;
             }
             else
             {
                break; //possible start of fraction
             }
          }
-         number->hasInteger = true;
+         number->has_integer = true;
          number->integer = (uint32_t) intPart;
       }
       else
       {
          bstr_set_error(ctx, BSTR_PARSE_ERROR);
-         pNext = 0;
+         next = 0;
       }
    }
-   return pNext;
+   return next;
 }
 
