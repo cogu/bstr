@@ -32,12 +32,12 @@
 // LOCAL FUNCTION PROTOTYPES
 //////////////////////////////////////////////////////////////////////////////
 static void test_bstr_make_cstr(CuTest* tc);
-static void test_bstr_make_cstr_x(CuTest* tc);
-static void test_bstr_search_val(CuTest* tc);
+static void test_bstr_make_cstr_with_padding(CuTest* tc);
+static void test_bstr_find_byte(CuTest* tc);
 static void test_bstr_match_pair(CuTest* tc);
 static void test_bstr_match_string(CuTest* tc);
-static void test_bstr_to_long(CuTest* tc);
-static void test_bstr_line_and_strip(CuTest* tc);
+static void test_bstr_parse_long(CuTest* tc);
+static void test_bstr_find_line_feed_and_strip(CuTest* tc);
 static void test_bstr_predicates(CuTest* tc);
 static void test_bstr_parse_json_string_literal_invalid(CuTest* tc);
 static void test_bstr_parse_json_string_literal_all_short_escapes(CuTest* tc);
@@ -48,8 +48,8 @@ static void test_bstr_parse_json_string_literal_invalid_unicode(CuTest* tc);
 static void test_bstr_parse_json_string_literal_missing_quotes(CuTest* tc);
 static void test_bstr_parse_json_string_literal_raw_utf8(CuTest* tc);
 static void test_bstr_skip_backward_while(CuTest* tc);
-static void test_bstr_to_unsigned_long_base10(CuTest* tc);
-static void test_bstr_to_unsigned_long_base16(CuTest* tc);
+static void test_bstr_parse_unsigned_long_base10(CuTest* tc);
+static void test_bstr_parse_unsigned_long_base16(CuTest* tc);
 static void test_bstr_parse_json_number_empty(CuTest* tc);
 static void test_bstr_parse_json_number_zero(CuTest* tc);
 static void test_bstr_parse_json_number_single_digit_int(CuTest* tc);
@@ -60,7 +60,7 @@ static void test_bstr_rstrip(CuTest* tc);
 static void test_bstr_parse_json_string_literal_empty(CuTest* tc);
 static void test_bstr_parse_json_string_literal_ascii(CuTest* tc);
 static void test_bstr_parse_json_string_literal_escapeChars(CuTest* tc);
-static void test_bstr_to_double(CuTest* tc);
+static void test_bstr_parse_double(CuTest* tc);
 
 
 
@@ -84,12 +84,12 @@ CuSuite* testsuite_bstr(void)
    CuSuite* suite = CuSuiteNew();
 
    SUITE_ADD_TEST(suite, test_bstr_make_cstr);
-   SUITE_ADD_TEST(suite, test_bstr_make_cstr_x);
-   SUITE_ADD_TEST(suite, test_bstr_search_val);
+   SUITE_ADD_TEST(suite, test_bstr_make_cstr_with_padding);
+   SUITE_ADD_TEST(suite, test_bstr_find_byte);
    SUITE_ADD_TEST(suite, test_bstr_match_pair);
    SUITE_ADD_TEST(suite, test_bstr_match_string);
-   SUITE_ADD_TEST(suite, test_bstr_to_long);
-   SUITE_ADD_TEST(suite, test_bstr_line_and_strip);
+   SUITE_ADD_TEST(suite, test_bstr_parse_long);
+   SUITE_ADD_TEST(suite, test_bstr_find_line_feed_and_strip);
    SUITE_ADD_TEST(suite, test_bstr_predicates);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_invalid);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_all_short_escapes);
@@ -100,8 +100,8 @@ CuSuite* testsuite_bstr(void)
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_missing_quotes);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_raw_utf8);
    SUITE_ADD_TEST(suite, test_bstr_skip_backward_while);
-   SUITE_ADD_TEST(suite, test_bstr_to_unsigned_long_base10);
-   SUITE_ADD_TEST(suite, test_bstr_to_unsigned_long_base16);
+   SUITE_ADD_TEST(suite, test_bstr_parse_unsigned_long_base10);
+   SUITE_ADD_TEST(suite, test_bstr_parse_unsigned_long_base16);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_number_empty);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_number_zero);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_number_single_digit_int);
@@ -112,7 +112,7 @@ CuSuite* testsuite_bstr(void)
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_empty);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_ascii);
    SUITE_ADD_TEST(suite, test_bstr_parse_json_string_literal_escapeChars);
-   SUITE_ADD_TEST(suite, test_bstr_to_double);
+   SUITE_ADD_TEST(suite, test_bstr_parse_double);
 
 
    return suite;
@@ -136,37 +136,37 @@ static void test_bstr_make_cstr(CuTest* tc)
    CuAssertPtrEquals(tc, NULL, bstr_make_cstr(data + sizeof(data), data));
 }
 
-static void test_bstr_make_cstr_x(CuTest* tc)
+static void test_bstr_make_cstr_with_padding(CuTest* tc)
 {
    const uint8_t data[] = {'d', 'a', 't', 'a'};
-   char *result = bstr_make_cstr_x(data, data + sizeof(data), 2, 3);
+   char *result = bstr_make_cstr_with_padding(data, data + sizeof(data), 2, 3);
 
    CuAssertPtrNotNull(tc, result);
    CuAssertTrue(tc, memcmp(result + 2, data, sizeof(data)) == 0);
    CuAssertIntEquals(tc, '\0', result[9]);
    free(result);
 
-   result = bstr_make_cstr_x(data, data + sizeof(data), 0, 0);
+   result = bstr_make_cstr_with_padding(data, data + sizeof(data), 0, 0);
    CuAssertPtrNotNull(tc, result);
    CuAssertStrEquals(tc, "data", result);
    free(result);
 
-   CuAssertPtrEquals(tc, NULL, bstr_make_cstr_x(NULL, data + sizeof(data), 1, 1));
-   CuAssertPtrEquals(tc, NULL, bstr_make_cstr_x(data, NULL, 1, 1));
+   CuAssertPtrEquals(tc, NULL, bstr_make_cstr_with_padding(NULL, data + sizeof(data), 1, 1));
+   CuAssertPtrEquals(tc, NULL, bstr_make_cstr_with_padding(data, NULL, 1, 1));
 }
 
-static void test_bstr_search_val(CuTest* tc)
+static void test_bstr_find_byte(CuTest* tc)
 {
    const uint8_t data[] = {'a', 0, 'b', 'c', 0xff};
    const uint8_t *begin = data;
    const uint8_t *end = data + sizeof(data);
 
-   CuAssertConstPtrEquals(tc, begin, bstr_search_val(begin, end, 'a'));
-   CuAssertConstPtrEquals(tc, begin + 1, bstr_search_val(begin, end, 0));
-   CuAssertConstPtrEquals(tc, begin + 4, bstr_search_val(begin, end, 0xff));
-   CuAssertConstPtrEquals(tc, begin, bstr_search_val(begin, end, 'z'));
-   CuAssertConstPtrEquals(tc, begin, bstr_search_val(begin, begin, 'a'));
-   CuAssertConstPtrEquals(tc, NULL, bstr_search_val(end, begin, 'a'));
+   CuAssertConstPtrEquals(tc, begin, bstr_find_byte(begin, end, 'a'));
+   CuAssertConstPtrEquals(tc, begin + 1, bstr_find_byte(begin, end, 0));
+   CuAssertConstPtrEquals(tc, begin + 4, bstr_find_byte(begin, end, 0xff));
+   CuAssertConstPtrEquals(tc, end, bstr_find_byte(begin, end, 'z'));
+   CuAssertConstPtrEquals(tc, begin, bstr_find_byte(begin, begin, 'a'));
+   CuAssertConstPtrEquals(tc, NULL, bstr_find_byte(end, begin, 'a'));
 }
 
 static void test_bstr_match_pair(CuTest* tc)
@@ -209,7 +209,7 @@ static void test_bstr_match_string(CuTest* tc)
    CuAssertConstPtrEquals(tc, NULL, bstr_match_cstr(begin, end, NULL));
 }
 
-static void test_bstr_to_long(CuTest* tc)
+static void test_bstr_parse_long(CuTest* tc)
 {
    const char negative[] = "-123";
    const char hexadecimal[] = "0x1f";
@@ -218,23 +218,23 @@ static void test_bstr_to_long(CuTest* tc)
    long value = 0;
 
    CuAssertConstPtrEquals(tc, (const uint8_t*) negative + strlen(negative),
-      bstr_to_long((const uint8_t*) negative, (const uint8_t*) negative + strlen(negative), &value));
+      bstr_parse_long((const uint8_t*) negative, (const uint8_t*) negative + strlen(negative), &value));
    CuAssertLIntEquals(tc, -123, value);
 
    CuAssertConstPtrEquals(tc, (const uint8_t*) hexadecimal + strlen(hexadecimal),
-      bstr_to_long((const uint8_t*) hexadecimal, (const uint8_t*) hexadecimal + strlen(hexadecimal), &value));
+      bstr_parse_long((const uint8_t*) hexadecimal, (const uint8_t*) hexadecimal + strlen(hexadecimal), &value));
    CuAssertLIntEquals(tc, 31, value);
 
    CuAssertConstPtrEquals(tc, (const uint8_t*) octal + strlen(octal),
-      bstr_to_long((const uint8_t*) octal, (const uint8_t*) octal + strlen(octal), &value));
+      bstr_parse_long((const uint8_t*) octal, (const uint8_t*) octal + strlen(octal), &value));
    CuAssertLIntEquals(tc, 63, value);
 
    CuAssertConstPtrEquals(tc, (const uint8_t*) partial + 2,
-      bstr_to_long((const uint8_t*) partial, (const uint8_t*) partial + strlen(partial), &value));
+      bstr_parse_long((const uint8_t*) partial, (const uint8_t*) partial + strlen(partial), &value));
    CuAssertLIntEquals(tc, 12, value);
 }
 
-static void test_bstr_line_and_strip(CuTest* tc)
+static void test_bstr_find_line_feed_and_strip(CuTest* tc)
 {
    const char lines[] = "first\nsecond\n";
    const char no_line[] = "first";
@@ -244,9 +244,9 @@ static void test_bstr_line_and_strip(CuTest* tc)
    const uint8_t *stripped_end;
 
    CuAssertConstPtrEquals(tc, (const uint8_t*) lines + 5,
-      bstr_line((const uint8_t*) lines, (const uint8_t*) lines + strlen(lines)));
-   CuAssertConstPtrEquals(tc, (const uint8_t*) no_line,
-      bstr_line((const uint8_t*) no_line, (const uint8_t*) no_line + strlen(no_line)));
+      bstr_find_line_feed((const uint8_t*) lines, (const uint8_t*) lines + strlen(lines)));
+   CuAssertConstPtrEquals(tc, (const uint8_t*) no_line + strlen(no_line),
+      bstr_find_line_feed((const uint8_t*) no_line, (const uint8_t*) no_line + strlen(no_line)));
 
    bstr_strip((const uint8_t*) padded, (const uint8_t*) padded + strlen(padded),
       &stripped_begin, &stripped_end);
@@ -273,12 +273,10 @@ static void test_bstr_predicates(CuTest* tc)
    CuAssertTrue(tc, bstr_pred_is_hex_digit('a'));
    CuAssertTrue(tc, bstr_pred_is_hex_digit('F'));
    CuAssertFalse(tc, bstr_pred_is_hex_digit('g'));
-   CuAssertFalse(tc, bstr_pred_is_one_nine('0'));
-   CuAssertTrue(tc, bstr_pred_is_one_nine('1'));
+   CuAssertFalse(tc, bstr_pred_is_nonzero_digit('0'));
+   CuAssertTrue(tc, bstr_pred_is_nonzero_digit('1'));
    CuAssertTrue(tc, bstr_pred_is_control_char(0x1f));
    CuAssertFalse(tc, bstr_pred_is_control_char(' '));
-   CuAssertFalse(tc, bstr_pred_is_not_zero(0));
-   CuAssertTrue(tc, bstr_pred_is_not_zero(1));
 }
 
 static void test_bstr_parse_json_string_literal_invalid(CuTest* tc)
@@ -295,23 +293,23 @@ static void test_bstr_parse_json_string_literal_invalid(CuTest* tc)
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) invalid_escape,
       (const uint8_t*) invalid_escape + strlen(invalid_escape), str);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 
-   bstr_clear_error(&ctx);
+   bstr_context_clear_error(&ctx);
    str = adt_str_new_utf8();
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) control_character,
       (const uint8_t*) control_character + strlen(control_character), str);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 
-   bstr_clear_error(&ctx);
+   bstr_context_clear_error(&ctx);
    str = adt_str_new_utf8();
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) unterminated,
       (const uint8_t*) unterminated + strlen(unterminated), str);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 }
 
@@ -329,7 +327,7 @@ static void test_bstr_parse_json_string_literal_all_short_escapes(CuTest* tc)
 
    CuAssertConstPtrEquals(tc, (const uint8_t*) input + strlen(input), result);
    CuAssertStrEquals(tc, expected, adt_str_cstr(str));
-   CuAssertUIntEquals(tc, BSTR_NO_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_NO_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 }
 
@@ -413,22 +411,22 @@ static void test_bstr_parse_json_string_literal_invalid_unicode(CuTest* tc)
    {
       adt_str_t *str = adt_str_new_utf8();
       const uint8_t *result;
-      bstr_clear_error(&ctx);
+      bstr_context_clear_error(&ctx);
       result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) inputs[index],
          (const uint8_t*) inputs[index] + strlen(inputs[index]), str);
       CuAssertConstPtrEquals(tc, NULL, result);
-      CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+      CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_context_last_error(&ctx));
       adt_str_delete(str);
    }
 
    {
       adt_str_t *str = adt_str_new_utf8();
       const uint8_t *result;
-      bstr_clear_error(&ctx);
+      bstr_context_clear_error(&ctx);
       result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) truncated,
          (const uint8_t*) truncated + strlen(truncated), str);
       CuAssertConstPtrEquals(tc, NULL, result);
-      CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_get_last_error(&ctx));
+      CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_context_last_error(&ctx));
       adt_str_delete(str);
    }
 }
@@ -446,15 +444,15 @@ static void test_bstr_parse_json_string_literal_missing_quotes(CuTest* tc)
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) missing_opening,
       (const uint8_t*) missing_opening + strlen(missing_opening), str);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 
-   bstr_clear_error(&ctx);
+   bstr_context_clear_error(&ctx);
    str = adt_str_new_utf8();
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) trailing_backslash,
       (const uint8_t*) trailing_backslash + strlen(trailing_backslash), str);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_PREMATURE_END_OF_BUFFER_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 }
 
@@ -474,12 +472,12 @@ static void test_bstr_parse_json_string_literal_raw_utf8(CuTest* tc)
    CuAssertStrEquals(tc, "\xE2\x82\xAC", adt_str_cstr(str));
    adt_str_delete(str);
 
-   bstr_clear_error(&ctx);
+   bstr_context_clear_error(&ctx);
    str = adt_str_new_utf8();
    result = bstr_parse_json_string_literal(&ctx, (const uint8_t*) invalid,
       (const uint8_t*) invalid + strlen(invalid), str);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_INVALID_CHARACTER_ERROR, bstr_context_last_error(&ctx));
    adt_str_delete(str);
 }
 
@@ -522,7 +520,7 @@ static void test_bstr_skip_backward_while(CuTest* tc)
 
 }
 
-static void test_bstr_to_unsigned_long_base10(CuTest* tc)
+static void test_bstr_parse_unsigned_long_base10(CuTest* tc)
 {
    const char *test_data1 = "123456789";
    const char *test_data2 = "0";
@@ -536,25 +534,25 @@ static void test_bstr_to_unsigned_long_base10(CuTest* tc)
 
    test_data = test_data1;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_unsigned_long(begin, end, 10, &value);
+   result = bstr_parse_unsigned_long(begin, end, 10, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertUIntEquals(tc, 123456789, value);
 
    test_data = test_data2;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_unsigned_long(begin, end, 10, &value);
+   result = bstr_parse_unsigned_long(begin, end, 10, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertUIntEquals(tc, 0, value);
 
    test_data = test_data3;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_unsigned_long(begin, end, 10, &value);
+   result = bstr_parse_unsigned_long(begin, end, 10, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertUIntEquals(tc, 4294967295UL, value);
 
 }
 
-static void test_bstr_to_unsigned_long_base16(CuTest* tc)
+static void test_bstr_parse_unsigned_long_base16(CuTest* tc)
 {
    const char *test_data1 = "75BCD15";
    const char *test_data2 = "0";
@@ -568,19 +566,19 @@ static void test_bstr_to_unsigned_long_base16(CuTest* tc)
 
    test_data = test_data1;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_unsigned_long(begin, end, 16, &value);
+   result = bstr_parse_unsigned_long(begin, end, 16, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertUIntEquals(tc, 123456789, value);
 
    test_data = test_data2;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_unsigned_long(begin, end, 16, &value);
+   result = bstr_parse_unsigned_long(begin, end, 16, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertUIntEquals(tc, 0, value);
 
    test_data = test_data3;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_unsigned_long(begin, end, 16, &value);
+   result = bstr_parse_unsigned_long(begin, end, 16, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertUIntEquals(tc, 4294967295UL, value);
 
@@ -687,12 +685,12 @@ static void test_bstr_parse_json_number_multi_digit_int(CuTest* tc)
    CuAssertTrue(tc, !number.is_negative);
    CuAssertUIntEquals(tc, 999999999u, number.integer);
 
-   bstr_clear_error(&ctx);
+   bstr_context_clear_error(&ctx);
    test_data = test_data4;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
    result = bstr_parse_json_number(&ctx, begin, end, &number);
    CuAssertConstPtrEquals(tc, NULL, result);
-   CuAssertUIntEquals(tc, BSTR_NUMBER_TOO_LARGE_ERROR, bstr_get_last_error(&ctx));
+   CuAssertUIntEquals(tc, BSTR_NUMBER_TOO_LARGE_ERROR, bstr_context_last_error(&ctx));
 
    test_data = test_data5;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
@@ -702,7 +700,7 @@ static void test_bstr_parse_json_number_multi_digit_int(CuTest* tc)
    CuAssertTrue(tc, !number.is_negative);
    CuAssertUIntEquals(tc, 2147483648u, number.integer);
 
-   bstr_clear_error(&ctx);
+   bstr_context_clear_error(&ctx);
    test_data = test_data6;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
    result = bstr_parse_json_number(&ctx, begin, end, &number);
@@ -869,7 +867,7 @@ static void test_bstr_parse_json_string_literal_escapeChars(CuTest* tc)
    adt_str_delete(str);
 }
 
-static void test_bstr_to_double(CuTest* tc)
+static void test_bstr_parse_double(CuTest* tc)
 {
    const char *test_data1 = "0";
    const char *test_data2 = "0.0";
@@ -887,43 +885,43 @@ static void test_bstr_to_double(CuTest* tc)
 
    test_data = test_data1;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, 0.0, value, delta);
 
    test_data = test_data2;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, 0.0, value, delta);
 
    test_data = test_data3;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, 1.0, value, delta);
 
    test_data = test_data4;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, 0.1, value, delta);
 
    test_data = test_data5;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, -1.0, value, delta);
 
    test_data = test_data6;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, -1.0, value, delta);
 
    test_data = test_data7;
    begin = (const uint8_t*) test_data, end = begin+strlen(test_data);
-   result = bstr_to_double(begin, end, &value);
+   result = bstr_parse_double(begin, end, &value);
    CuAssertConstPtrEquals(tc, end, result);
    CuAssertDblEquals(tc, -100.123, value, delta);
 
