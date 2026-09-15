@@ -65,9 +65,6 @@ static const int ASCIIHexToInt[256] =
 // PUBLIC FUNCTIONS
 //////////////////////////////////////////////////////////////////////////////
 
-/**
- * Creates new bstr context (for purposes of thread safety)
- */
 void bstr_context_create(bstr_context_t *self)
 {
    if (self != NULL)
@@ -94,12 +91,17 @@ void bstr_context_delete(bstr_context_t *self)
    }
 }
 
+bstr_error_t bstr_context_last_error(bstr_context_t *ctx)
+{
+   return ctx->last_error;
+}
 
-/**
- * Similar to strdup but operates on a bounded string. Returns a new NULL-terminated C string.
- * Additionally the caller is responsible for freeing up the memory allocated by this function
- * by calling free on the returned pointer.
- */
+void bstr_context_clear_error(bstr_context_t *ctx)
+{
+   ctx->last_error = BSTR_NO_ERROR;
+}
+
+
 char* bstr_make_cstr(const uint8_t *begin, const uint8_t *end){
    if( (begin != NULL) && (end != NULL) && (begin<end)){
       uint32_t len = (uint32_t) (end-begin);
@@ -113,22 +115,15 @@ char* bstr_make_cstr(const uint8_t *begin, const uint8_t *end){
    return NULL;
 }
 
-/**
- * Similar to bstr_make but in addition it adds optional space before and after the copied string.
- * start_offset is the number of extra bytes to add before the (copied) string while
- * end_offset is the number of extra bytes to add after string.
- * It's OK to set one of the offsets to zero. If both start_offset and end_offset are zero
- * it behaves identical to calling bstr_make_cstr directly
- */
-char *bstr_make_cstr_x(const uint8_t *begin, const uint8_t *end, uint16_t start_offset, uint16_t end_offset){
+char *bstr_make_cstr_with_padding(const uint8_t *begin, const uint8_t *end, uint16_t padding_left, uint16_t padding_right){
    if( (begin != NULL) && (end != NULL) && (begin)){
       uint8_t *str;
       uint32_t allocLen;
       uint32_t strLen = (uint32_t) (end-begin);
-      allocLen = strLen+start_offset+end_offset+1;
+      allocLen = strLen+padding_left+padding_right+1;
       str = (uint8_t*) malloc(allocLen);
       if(str != NULL){
-         memcpy(str+start_offset,begin,strLen);
+         memcpy(str+padding_left,begin,strLen);
          str[allocLen-1]=(uint8_t)0;
       }
       return (char*)str;
@@ -136,12 +131,7 @@ char *bstr_make_cstr_x(const uint8_t *begin, const uint8_t *end, uint16_t start_
    return NULL;
 }
 
-/**
- * scans for \par val between \par begin and \par end.
- * On success it returns the pointer to \par val.
- * On failure it returns \par begin if not found or NULL if invalid arguments was given.
- */
-const uint8_t *bstr_search_val(const uint8_t *begin, const uint8_t *end, uint8_t val){
+const uint8_t *bstr_find_byte(const uint8_t *begin, const uint8_t *end, uint8_t byte){
    const uint8_t *next = begin;
    if (next > end)
    {
@@ -149,20 +139,14 @@ const uint8_t *bstr_search_val(const uint8_t *begin, const uint8_t *end, uint8_t
    }
    while(next < end){
       uint8_t c = *next;
-      if(c == val){
+      if(c == byte){
          return next;
       }
       next++;
    }
-   return begin; //val was not found before end was reached
+   return end;
 }
 
-/**
- * scans for matching \par left and \par right characters in a string. Used for matching '(' with ')', '[' with, ']' etc.
- * On Success it returns the pointer to \par right.
- * On failure it returns \par begin if the scan reached \par end before \par right was found.
- * If it cannot even match \par left on the first character of \par begin it returns NULL.
- */
 const uint8_t *bstr_match_pair(const uint8_t *begin, const uint8_t *end, uint8_t left, uint8_t right, uint8_t escape_char){
    const uint8_t *next = begin;
    uint32_t innerLevelCount=0;
@@ -226,14 +210,6 @@ const uint8_t *bstr_match_pair(const uint8_t *begin, const uint8_t *end, uint8_t
    return begin;
 }
 
-/**
- * \brief compares characters in string bounded by str_begin and str_end in buffer bound by begin and end
- * \param begin start of buffer
- * \param end end of buffer
- * \param str_begin start of string to be matched
- * \param str_end end of string to matched
- * \return On success, pointer in buffer where the match stopped. On match failure it returns 0. If end was reached before str_end was fully matched it returns begin.
- */
 const uint8_t *bstr_match_bstr(const uint8_t *begin, const uint8_t *end, const uint8_t *str_begin, const uint8_t *str_end)
 {
    const uint8_t *next = begin;
@@ -266,9 +242,6 @@ const uint8_t *bstr_match_bstr(const uint8_t *begin, const uint8_t *end, const u
    return begin; //reached end before str_begin was fully matched
 }
 
-/**
- * Checks if the C string (cstr) is a substring of the bounded string (bstr).
- */
 const uint8_t *bstr_match_cstr(const uint8_t *begin, const uint8_t *end, const char *cstr)
 {
    const uint8_t *str_begin = (const uint8_t*) cstr;
@@ -282,7 +255,7 @@ const uint8_t *bstr_match_cstr(const uint8_t *begin, const uint8_t *end, const c
    return bstr_match_bstr(begin, end, str_begin, str_end);
 }
 
-const uint8_t* bstr_to_double(const uint8_t* begin, const uint8_t* end, double* data)
+const uint8_t* bstr_parse_double(const uint8_t* begin, const uint8_t* end, double* data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
@@ -310,7 +283,7 @@ const uint8_t* bstr_to_double(const uint8_t* begin, const uint8_t* end, double* 
    return NULL;
 }
 
-const uint8_t *bstr_to_long(const uint8_t *begin, const uint8_t *end, long *data)
+const uint8_t *bstr_parse_long(const uint8_t *begin, const uint8_t *end, long *data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
@@ -338,7 +311,7 @@ const uint8_t *bstr_to_long(const uint8_t *begin, const uint8_t *end, long *data
    return NULL;
 }
 
-const uint8_t* bstr_to_long_long(const uint8_t* begin, const uint8_t* end, long long* data)
+const uint8_t* bstr_parse_long_long(const uint8_t* begin, const uint8_t* end, long long* data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
@@ -367,7 +340,7 @@ const uint8_t* bstr_to_long_long(const uint8_t* begin, const uint8_t* end, long 
 }
 
 
-const uint8_t *bstr_to_unsigned_long(const uint8_t *begin, const uint8_t *end, uint8_t base, unsigned long *data)
+const uint8_t *bstr_parse_unsigned_long(const uint8_t *begin, const uint8_t *end, uint8_t base, unsigned long *data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
@@ -395,7 +368,7 @@ const uint8_t *bstr_to_unsigned_long(const uint8_t *begin, const uint8_t *end, u
    return NULL;
 }
 
-const uint8_t* bstr_to_unsigned_long_long(const uint8_t* begin, const uint8_t* end, uint8_t base, unsigned long long* data)
+const uint8_t* bstr_parse_unsigned_long_long(const uint8_t* begin, const uint8_t* end, uint8_t base, unsigned long long* data)
 {
    char tmp[MAX_NUMBER_SIZE+1];   
    char* parse_end = NULL;
@@ -423,9 +396,6 @@ const uint8_t* bstr_to_unsigned_long_long(const uint8_t* begin, const uint8_t* e
    return NULL;
 }
 
-/**
- * Parses a number from a bounded string using JSON number format
- */
 const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, bstr_number_t *number)
 {
    const uint8_t *result;
@@ -451,10 +421,6 @@ const uint8_t *bstr_parse_json_number(bstr_context_t *ctx, const uint8_t *begin,
    return next;
 }
 
-/**
- * Using the JSON definition, this function parses a double-quoted string literal.
- * The parsed string (not including the the quotation marks) will be stored in the str parameter
- */
 const uint8_t *bstr_parse_json_string_literal(bstr_context_t *ctx, const uint8_t *begin, const uint8_t *end, adt_str_t *str)
 {
    if ( (ctx == NULL) || (begin == NULL) || (end == NULL) || (str == NULL) || (end < begin) )
@@ -643,12 +609,9 @@ parse_error:
    return NULL;
 }
 
-/**
- * searches for next line ending '\n'. returns where it encountered the line ending
- */
-const uint8_t *bstr_line(const uint8_t *begin, const uint8_t *end)
+const uint8_t *bstr_find_line_feed(const uint8_t *begin, const uint8_t *end)
 {
-   return bstr_search_val(begin, end, (uint8_t) '\n');
+   return bstr_find_byte(begin, end, (uint8_t) '\n');
 }
 
 const uint8_t *bstr_skip_forward_while(const uint8_t *begin, const uint8_t *end, int (*predicate)(int c) )
@@ -684,17 +647,11 @@ const uint8_t *bstr_skip_backward_while(const uint8_t *begin, const uint8_t *end
    return begin;
 }
 
-/**
- * Strips any whitespace from beginning of string, returns a new begin where first non-whitespace charactes is found
- */
 const uint8_t *bstr_lstrip(const uint8_t *begin, const uint8_t *end)
 {
    return bstr_skip_forward_while(begin, end, bstr_pred_is_whitespace);
 }
 
-/**
- * Strips any whitespace from end of string, returns a new end which points to the first whitespace character
- */
 const uint8_t *bstr_rstrip(const uint8_t *begin, const uint8_t *end)
 {
    return bstr_skip_backward_while(begin, end, bstr_pred_is_whitespace);
@@ -704,16 +661,6 @@ void bstr_strip(const uint8_t *begin, const uint8_t *end, const uint8_t **stripp
 {
    *stripped_begin = bstr_lstrip(begin, end);
    *stripped_end = bstr_rstrip(*stripped_begin, end);
-}
-
-bstr_error_t bstr_get_last_error(bstr_context_t *ctx)
-{
-   return ctx->last_error;
-}
-
-void bstr_clear_error(bstr_context_t *ctx)
-{
-   ctx->last_error = BSTR_NO_ERROR;
 }
 
 /*************** predicate functions ***************/
@@ -737,7 +684,7 @@ int bstr_pred_is_hex_digit(int c)
    return ((c >= '0') && (c <= '9') ) || ((c >= 'a') && (c <= 'f')) || ((c >= 'A') && (c <= 'F'));
 }
 
-int bstr_pred_is_one_nine(int c)
+int bstr_pred_is_nonzero_digit(int c)
 {
    return (c >= '1') && (c <= '9');
 }
@@ -745,11 +692,6 @@ int bstr_pred_is_one_nine(int c)
 int bstr_pred_is_control_char(int c)
 {
    return (c < 32);
-}
-
-int bstr_pred_is_not_zero(int c)
-{
-   return c != 0u;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -865,7 +807,7 @@ const uint8_t *bstr_parse_number_int(bstr_context_t *ctx, const uint8_t *begin, 
          number->has_integer = true;
          ++next;
       }
-      else if (bstr_pred_is_one_nine(c))
+      else if (bstr_pred_is_nonzero_digit(c))
       {
          int64_t intPart = ASCIIHexToInt[(int) c];
          next++;
