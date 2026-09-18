@@ -46,13 +46,37 @@ git clone https://github.com/cogu/cutil.git
 cd bstr
 ```
 
+
 ## Building with CMake
 
 First, clone this repository and its dependencies into a common directory (such as `~/repo`), as shown above. Alternatively, the repositories can be submodules of a top-level project, as in [cogu/c-apx](https://github.com/cogu/c-apx).
 
 On Windows, use a Native Tools Command Prompt from your Visual Studio installation. It includes a CMake binary that selects the appropriate compiler version by default.
 
-### Running unit tests (Linux and Windows)
+
+### Using CMake Presets (Clang 18 + Ninja)
+
+```bash
+# Run unit tests
+cmake --preset clang-test
+cmake --build --preset clang-test
+ctest --preset clang-test
+
+# Address and Undefined Behavior Sanitizers (ASan + UBSan)
+cmake --preset clang-asan
+cmake --build --preset clang-asan
+ctest --preset clang-asan
+
+# Static Analysis
+cmake --preset clang-tidy
+cmake --build --preset clang-tidy
+```
+
+### Manual CMake Workflows (Linux and Windows)
+
+For Windows, use a "Native tools command prompt" from your Visual Studio installation. It comes with a cmake binary that by default chooses the appropriate compiler version.
+
+#### Running unit tests
 
 Configure:
 
