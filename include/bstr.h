@@ -60,6 +60,13 @@ typedef struct bstr_context_tag
 void bstr_context_create(bstr_context_t *self);
 
 /**
+ * \brief Destroys a bounded-string context.
+ *
+ * \param self Context to destroy. May be NULL.
+ */
+void bstr_context_destroy(bstr_context_t *self);
+
+/**
  * \brief Allocates and initializes a bounded-string context.
  *
  * \return A newly allocated context, or NULL if allocation fails. The caller

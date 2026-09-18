@@ -72,6 +72,11 @@ void bstr_context_create(bstr_context_t *self)
    }
 }
 
+void bstr_context_destroy(bstr_context_t *self)
+{
+   (void) self;
+}
+
 bstr_context_t *bstr_context_new(void)
 {
    bstr_context_t *self = (bstr_context_t*) malloc(sizeof(bstr_context_t));
@@ -86,6 +91,7 @@ void bstr_context_delete(bstr_context_t *self)
 {
    if (self != NULL)
    {
+      bstr_context_destroy(self);
       free(self);
    }
 }

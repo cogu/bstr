@@ -1,0 +1,6 @@
+sphinx
+furo
+sphinx-design
+sphinxcontrib-mermaid
+breathe
+
