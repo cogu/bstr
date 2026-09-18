@@ -1,7 +1,11 @@
 ![unit tests](https://github.com/cogu/bstr/workflows/unit%20tests/badge.svg)
+[![Documentation Status](https://readthedocs.org/projects/bstr/badge/?version=latest)](https://bstr.readthedocs.io/en/latest/?badge=latest)
 
 # bstr
+
 Bounded string library for the C programming language.
+
+Online documentation and API reference: **[bstr.readthedocs.io](https://bstr.readthedocs.io/en/latest/)**
 
 ## What is it?
 
